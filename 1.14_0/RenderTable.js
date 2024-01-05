@@ -1,0 +1,91 @@
+
+import {Tools} from "./Tools.js";
+
+export class RenderTable{
+    constructor(container){
+        this.headers = [];
+        this.fields = [];
+        this.dataList = [];
+        this.showRelatedFields = [];
+        this.id = Tools.getUuid();
+        this.sortField={};
+        this.description = '';
+        $(container).append(`<table id="${this.id}"><thead><tr><th>Loading table datas</th></thead></tr></table>`);
+        this.sortable = false;
+    }
+
+    update(){
+        $('#'+this.id).html(this.create());
+    }
+
+    create(){
+        if (!this.dataList.length){
+            return `<div>${this.description}</div><div>No Data</div>`;
+        }
+        return `<thead>
+                    <tr><th colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}</th></tr>
+                    <tr>
+                        ${this.fields.concat(this.showRelatedFields).map(e=>{
+                            return `<th class="field-${e.label}" tabindex="0">${e.label}
+                                <button class="actions-button" name="${e.label}" style="${this.sortable?'':'display:none'}">
+                                    <svg class="actions-icon">
+                                        <use xlink:href="symbols.svg#${this.sortField[e.label]?.asc?'arrowdown':'arrowup'}"></use>
+                                    </svg>
+                                </button>
+                            </th>`
+                        }).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${this.dataList.map(r=>{
+                        return `
+                <tr class="${r.Name}" title="${r.Id}">
+
+                ${this.fields.concat(this.showRelatedFields).map(e=>{
+                    return `<td class="field-${e.property}" title="${e.property}" tabindex="0">${this.valuetostring(r, e.property, '')} ${this.translationToLink(r, e)}</td>`
+                }).join('')}
+                </tr>`
+                    }).join('')}
+                </tbody>`
+    }
+
+    valuetostring(record, prop, attr){
+        let value = record;
+        let props = prop.split('.');
+        while(props.length && value){
+            let first = props.shift();
+            value = value[first];
+        }
+        if (value===true){
+            return `<input type="checkbox" disabled checked></input>`;
+        }
+        if (value===false){
+            return `<input type="checkbox" disabled></input>`;
+        }
+
+        if (value === undefined || value === null){
+            return '';
+        }
+        if (typeof value ==='string'){
+            return value;
+        }
+        if (typeof value ==='object'){
+            if (value.length===0){
+                return  '';
+            }
+            if (value.length>0 && value.join){
+                return value.map(e=>`<span class="relationship">${this.valuetostring(e, '', attr)}</span>`).join(',');
+            }
+            return JSON.stringify(value);
+        }
+        return value;
+    }
+
+    translationToLink(r, e){
+        let val = this.valuetostring(r, e.property, '');
+        if (!e.isLink ||!val){
+            return '';
+        }
+        return `<a><span class="sobject-link" name="${e.property}" target="${e.target}" value="${val}">go</span></a>`
+    }
+}

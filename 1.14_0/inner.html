@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Data Export</title>
+    <link rel="stylesheet" href="button.css">
+    <link rel="stylesheet" href="data-load.css">
+    <link rel="stylesheet" href="data-export.css">
+    <link rel="stylesheet" href="data-export-csw.css">
+    <script src="jquery-3.5.1.js"></script>
+    <script src="csw/vue.js"></script>
+</head>
+
+<body>
+    <div class="root-message"></div>
+    <div id="metadata" class="tabcontent">
+        <div id="showallmetadata">site = {{site}}</div>
+    </div>
+    
+    
+    <script>
+		var vm = new Vue({
+    el: '#showallmetadata',
+    data: {
+        site: "菜鸟教程",
+        url: "www.runoob.com",
+        alexa: "10000"
+    }
+  })
+	</script>
+    <script type="module" src="inner.js"></script>
+</body>
+
+</html>

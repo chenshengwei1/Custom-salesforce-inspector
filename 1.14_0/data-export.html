@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Data Export</title>
+    <link rel="stylesheet" href="button.css">
+    <link rel="stylesheet" href="data-load.css">
+    <link rel="stylesheet" href="data-export.css">
+    <link rel="stylesheet" href="data-export-csw.css">
+    <script  src="csw/vue.js"></script>
+    <link  rel="stylesheet" href="csw/component.css"></link>
+    <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/default.min.css">
+  </head>
+  <body>
+    <div class="root-message"></div>
+    <!-- Tab links -->
+    <div class="tab top-btn">
+      <button class="tablinks" name="dataexport" id="dataexportbtn">Data Export</button>
+    </div>
+
+    <div class="dark top-tab">
+      <div id="dataexport" class="tabcontent">
+        <div id="root"></div>
+      </div>
+    </div>
+
+    <script src="react.min.js"></script>
+    <script src="react-dom.min.js"></script>
+    <script src="button.js"></script>
+    <script type="module" src="data-export.js"></script>
+    <script src="jquery-3.5.1.js"></script>
+    <script src="csw/JSZip.js"></script>
+    <script src="csw/sql-formater.js"></script>
+    <script src="csw/highlight.js"></script>
+    
+    
+    <script type="module" src="data-export-csw.js"></script>
+  </body>
+</html>
