@@ -11,6 +11,9 @@ import {SObjectTable} from "./csw/SObjectTable.js";
 import {DataExpendAsTree} from "./csw/DataExpendAsTree.js";
 import {ReportTable} from "./csw/ReportTable.js";
 import {ApplicationLog} from "./csw/ApplicationLog1.js";
+import {RecordInfo} from "./csw/RecordInfo.js";
+import {CopytoExcel} from "./csw/CopytoExcel.js";
+import {StockBalance} from "./csw/StockBalance.js";
 
 
 
@@ -37,30 +40,50 @@ $(document).ready(function(){
 let items = [{
     name:  'tree',
     label: 'Tree',
+    class: DataExpendAsTree
 },{
     name:  'table',
     label: 'Show SObject Information',
+    class: SObjectTable
 },{
     name:  'sobjectdata',
     label: 'Show All Records',
+    class: SObjectAllDataTable
 },{
     name:  'metadata',
     label: 'Show Metadata',
+    class: MetadateTree
 },{
     name:  'showorder',
     label: 'Show Order and Relation',
+    class: ShowOrderTable
 },{
     name:  'showreport',
     label: 'Report',
+    class: ReportTable
 },{
     name:  'applicationLog',
     label: 'Application Log',
+    class: ApplicationLog
+},{
+    name:  'recordallinfo',
+    label: 'Record Info',
+    class: RecordInfo
+},{
+    name:  'copytoexcel',
+    label: 'Copy to Excel',
+    class: CopytoExcel
+},{
+    name:  'mapperStockbalance',
+    label: 'Stock Balance',
+    class: StockBalance
 }];
 for (let item of items){
     $('.top-btn').append(`<button class="tablinks" name="${item.name}">${item.label}</button>`)
     $('.top-tab').append(`<div id="${item.name}" class="tabcontent">
         <div id="${item.name}info"></div>
-    </div>`)
+    </div>`);
+    item.rootId = item.name + 'info';
 }
 
 function openCity(evt, cityName) {
@@ -86,6 +109,10 @@ function openCity(evt, cityName) {
 
 $('.tab .tablinks').on('click', (event)=>{
     openCity(event, event.target.name);
+    let item = items.find(e => e.name == event.target.name);
+    if (item?.tab?.active){
+        item.tab.active();
+    }
 })
 let s = document.getElementById("dataexportbtn");
 if (s){
@@ -111,29 +138,33 @@ if (s){
     let tree = new QueryMananger({sfHost, args});
     tree.start().then(() => {
 
-      let tab = new SObjectTable(tree);
-      let dataTree = new DataExpendAsTree(tree);
-      let dataTable = new SObjectAllDataTable(tree);
-      let metaTree = new MetadateTree(tree);
-      let showorder = new ShowOrderTable(tree);
-      let reportTable = new ReportTable(tree);
-      let applog = new ApplicationLog(tree);
-      reportTable.metadateTree = metaTree;
-      dataTable.createHead();
-      metaTree.createHead();
-      tab.createHead();
-      tab.addListener('update', (e)=>{
+        // let tabs = [new SObjectTable(tree),
+        //     new DataExpendAsTree(tree),
+        //     new SObjectAllDataTable(tree),
+        //     new MetadateTree(tree),
+        //     new ShowOrderTable(tree),
+        //     new ReportTable(tree),
+        //     new ApplicationLog(tree),
+        //     new RecordInfo(tree)];
+        let tabs =[];
+      for (let item of items){
+        try{
+            let tab = new item.class(tree);
+            tab.createHead(item.rootId);
+            tabs.push(tab);
+            item.tab = tab;
+        }catch(e){
+        }
+      }
+      tabs[5].metadateTree = tabs[3];
+      tabs[1].addListener('update', (e)=>{
          let {reocrdId, sobject} = e.data;
          tab.doUpdaate(reocrdId, sobject);
       })
-      dataTree.createHead();
-      showorder.createHead();
-      reportTable.createHead();
-      applog.createHead();
 
       new ResizeTable('datatable').start();
       $('#Retry').on('click',()=>{
-        dataTree.doUpdate(sobjectName, recordId);
+        tabs[1].doUpdate(sobjectName, recordId);
       })
 
 
