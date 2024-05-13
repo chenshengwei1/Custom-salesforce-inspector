@@ -25,7 +25,17 @@ export class ReportTable{
         this.updatedReferSelect = {};
         this.referSelected = [];
         this.fieldGroupBy = [];
+        this.isActived = false;
     }
+
+    active(){
+        if (this.isActived){
+            return;
+        }
+        this.isActived =  true;
+        this.createHead(this.rootId);
+    }
+
     render(){
         return `
             <div>${this.message || ''}</dov>
@@ -102,7 +112,7 @@ export class ReportTable{
     dateFormat(time){
         if (time && typeof time ==='string'){
             if (time.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+\d{4}/)){
-                return this.tree.Tools.formatDate(new Date(Date.parse('2023-12-02T06:45:16.000+0000')), 'yyyy-MM-dd hh:dd:ss')
+                return this.tree.Tools.formatDate(new Date(Date.parse(time)), 'yyyy-MM-dd hh:dd:ss')
             }else{
                 return time;
             }
@@ -244,9 +254,14 @@ export class ReportTable{
     async loadData(soql){
         let result = await this.tree.getRecordsBySoql(soql);
         this.message = result.title;
-        this.lastData = result.data;
-        
+        this.lastData = result.data || {records:[], totalSize:0};
+        if (this.message){
+            this.showMessage(this.message, 'error');
+        }else{
+            this.showMessage('');
+        }
         await this.processData(this.lastData);
+
     }
 
     hasNext(){
@@ -633,12 +648,16 @@ export class ReportTable{
         this.updateNotLoad();
     }
 
-    createHead(){
-        let treeroot = document.getElementById('showreportinfo');
+    createHead(rootId){
+        this.rootId = rootId;
+        if (!this.isActived ){
+            return;
+        }
+        let treeroot = document.getElementById(rootId);
         let searchAear = `
         <p>
             Object Search:<br/>
-            <input class="search feedback-input" id="report-sobjectsearch2" disabled type="input" value="Report" autocomplete="off" style="width:70%"></input>
+            <input class="search feedback-input no-border" id="report-sobjectsearch2" disabled type="input" value="Report" autocomplete="off" style="width:70%"></input>
             <input class="search feedback-input" id="report-sobjectsearch" type="input" value="Order" autocomplete="off" style="width:70%"></input>
             <button class="tablinks tabitem-btn" name="Reports" id="report-refreshSObjectReports">Reports</button>
             <button class="tablinks tabitem-btn" name="SOQL" id="report-refreshSObjectSoql">SOQL</button>
@@ -653,7 +672,7 @@ export class ReportTable{
             <div class="report-body">
                 
                 <div class="left-panel" id="object-field-tree">
-                    <button class="tablinks" name="load-tree">Order</button>
+                    <button class="tablinks" name="load-tree">Open</button>
                     <button class="tablinks" name="load-show-name">Show Name</button>
                     <button class="tablinks" name="load-show-label">Show Label</button>
                     <button class="tablinks" name="load-show-save">Save</button>
@@ -661,9 +680,18 @@ export class ReportTable{
                     <button class="tablinks" name="load-show-recoreds">Records</button>
                     <button class="tablinks" name="load-show-groupby">Group By</button>
                     <button class="tablinks" name="load-show-next">Next</button>
+                    <button class="tablinks" name="load-show-reset">Reset</button>
+                    <div>
+                        <input class="search feedback-input hide"  type="input" value="" autocomplete="off" ></input>
+                        <div class="search-box">
+                            <input type="search" placeholder="Search here..." id="report-fieldearch"/>
+                            <button type="submit" class="search-btn"><i class="fa fa-search"></i></button>
+                        </div>
+                    </div>
                     <div id="object-field-tree-content"></div>
                     <div id="object-field-tree-groupby"></div>
                 </div>
+                <div class="sibar"></div>
                 <div class="right-panel">
                     <div class="objsearchresult tabitem Reports"></div>
                     <div class="report-view-soql tabitem SOQL">
@@ -753,40 +781,43 @@ export class ReportTable{
     createGroupByPanel(){
         
        let content = this.referSelected.map(e=>{
-            return `<div class="checkbox-wrapper" name="${e}" draggable="true" data-effect="copy" data-drop="copy">
-            <input id="${this.tree.getUuid()}" name="${e}" type="checkbox" ${this.fieldGroupBy.indexOf(e)==-1?'':'checked'}>
-            <label class="terms-label" for="terms-checkbox-37">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 200" class="checkbox-svg">
-                <mask fill="white" id="path-1-inside-1_476_5-37">
-                  <rect height="200" width="200"></rect>
-                </mask>
-                <rect mask="url(#path-1-inside-1_476_5-37)" stroke-width="40" class="checkbox-box" height="200" width="200"></rect>
-                <path stroke-width="15" d="M52 111.018L76.9867 136L149 64" class="checkbox-tick"></path>
-              </svg>
-              <span class="label-text">${e}</span>
-            </label>
+            return `
+            <div class="checkbox-wrapper" name="${e}" draggable="true" data-effect="copy" data-drop="copy">
+                <input id="${this.tree.getUuid()}" name="${e}" type="checkbox" ${this.fieldGroupBy.indexOf(e)==-1?'':'checked'}>
+                <label class="terms-label" for="terms-checkbox-37">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 200" class="checkbox-svg">
+                    <mask fill="white" id="path-1-inside-1_476_5-37">
+                    <rect height="200" width="200"></rect>
+                    </mask>
+                    <rect mask="url(#path-1-inside-1_476_5-37)" stroke-width="40" class="checkbox-box" height="200" width="200"></rect>
+                    <path stroke-width="15" d="M52 111.018L76.9867 136L149 64" class="checkbox-tick"></path>
+                </svg>
+                <span class="label-text">${e}</span>
+                </label>
           </div>
           `
        })
-        $('#object-field-tree-groupby').html(content.join('') + `<div class="checkbox-wrapper empty-check" name="rabush"  data-drop="delete">
-        <label class="terms-label" for="terms-checkbox-37">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 200" class="checkbox-svg">
-            <mask fill="white" id="path-1-inside-1_476_5-37">
-              <rect height="200" width="200"></rect>
-            </mask>
-            <rect mask="url(#path-1-inside-1_476_5-37)" stroke-width="40" class="checkbox-box" height="200" width="200"></rect>
-            <path stroke-width="15" d="M52 111.018L76.9867 136L149 64" class="checkbox-tick"></path>
-          </svg>
-          <span class="label-text">Waste Recycling Station</span>
-        </label>
-      </div> 
-      ` + this.createConditionPanel());
+
+       content.push(`<div class="checkbox-wrapper empty-check" name="rabush"  data-drop="delete">
+       <label class="terms-label" for="terms-checkbox-37">
+         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 200" class="checkbox-svg">
+           <mask fill="white" id="path-1-inside-1_476_5-37">
+             <rect height="200" width="200"></rect>
+           </mask>
+           <rect mask="url(#path-1-inside-1_476_5-37)" stroke-width="40" class="checkbox-box" height="200" width="200"></rect>
+           <path stroke-width="15" d="M52 111.018L76.9867 136L149 64" class="checkbox-tick"></path>
+         </svg>
+         <span class="label-text">Waste Recycling Station</span>
+       </label>
+     </div> 
+     `);
+        $('#object-field-tree-groupby').html(`<div class="drag-container">${content.join('')}</div>` +  + this.createConditionPanel());
 
       $('.report-condition-input').val(this.referConditions.join('\n'));
     }
 
     createConditionPanel(){
-       return `<textarea class="report-condition-input" value="${this.referConditions.join('\n')}"></textarea>`
+       return `<textarea class="report-condition-input feedback-input" value="${this.referConditions.join('\n')}"></textarea>`
     }
 
     createNavigationTree(container, sobjectName, attr, currentPath){
@@ -807,7 +838,9 @@ export class ReportTable{
     }
 
     setReportObjectName(sobjectname){
+        sobjectname = this.tree.allSObjectApi.map(e=>e.global.name).find(e => e.toLocaleLowerCase() == sobjectname.toLocaleLowerCase());
         this.reportObjectName = sobjectname;
+        
         this.createNavigationTree($('.report-searchresult #object-field-tree-content'), sobjectname);
     }
 
@@ -853,14 +886,14 @@ export class ReportTable{
 
    async getAllItems(sobjectname){
         let sobjectDescibe = await this.getDescribeSobject(sobjectname);
-        return sobjectDescibe.fields.toSorted((a, b)=>{
+        return (sobjectDescibe?.fields||[]).toSorted((a, b)=>{
             return a.label.toLocaleLowerCase().localeCompare(b.label.toLocaleLowerCase());
         });
     }
 
     async getAllChildrenItems(sobjectname){
         let sobjectDescibe = await this.getDescribeSobject(sobjectname);
-        return sobjectDescibe.childRelationships.filter(e=>{
+        return (sobjectDescibe?.childRelationships||[]).filter(e=>{
             return e.relationshipName;
         }).toSorted((a, b)=>{
             return a.relationshipName.toLocaleLowerCase().localeCompare(b.relationshipName.toLocaleLowerCase());
@@ -912,13 +945,21 @@ export class ReportTable{
         $('#object-field-tree-groupby').addClass('hide');
     }
 
-    updateReportCheck(reprotName){
-        let storage = localStorage.getItem('report.checkboxSelected');
-        let storageArray = JSON.parse(storage || '[]');
-        let defaultStorage = storageArray.find(e=>{
-            return e.name == reprotName;
-        })
-        defaultStorage = defaultStorage || {name : reprotName, check:{}};
+    updateReportCheck(reprotName , defaultConfig, isLocalStorage=true){
+        let defaultStorage = null;
+        if (isLocalStorage){
+            let storage = localStorage.getItem('report.checkboxSelected');
+            let storageArray = JSON.parse(storage || '[]');
+            defaultStorage = storageArray.find(e=>{
+                return e.lastSelected;
+            })
+            defaultStorage = defaultStorage || storageArray.find(e=>{
+                return e.name == reprotName;
+            })
+            defaultStorage = defaultStorage ||  {name : reprotName, check: defaultConfig || {}};
+        }else{
+            defaultStorage = {check: defaultConfig};
+        }
 
         let checkboxSelectedobj = defaultStorage.check;
         this.updatedSelect = checkboxSelectedobj.fields || {};
@@ -936,7 +977,7 @@ export class ReportTable{
     initObjectAllDataHead(){
         this.initModalEvent();
         $('.report-searchresult .tabitem').hide();
-        $('.report-searchresult .Reports').show();
+        $('.report-searchresult .Result').show();
         $('#report-sobjectsearch2').on('change', (event)=>{
             let tableName = $(event.target).val();
             this.setSobjectname(tableName);
@@ -944,13 +985,29 @@ export class ReportTable{
 
         $('#report-sobjectsearch').on('change', (event)=>{
             let tableName = $(event.target).val();
-            this.reportObjectName = tableName;
-            this.setReportObjectName(tableName);
+            if (!tableName){
+                tableName = this.reportObjectName;
+            }
+            if (this.reportObjectName != tableName && tableName){
+                this.reportObjectName = tableName;
+                let newCheckboxSelected = {
+                    fields:{},
+                    refers: {},
+                    groupby:[],
+                    referSelected:[],
+                    referConditions:[],
+                    sql:'',
+                    sobject:tableName||'Order'
+                }
+                this.updateReportCheck('New Report '+this.reportObjectName + ' '+Math.floor(Math.random() * 1000), newCheckboxSelected, false);
+                //this.setReportObjectName(tableName);
+            }
+
         })
 
         
 
-        $('#showreportinfo .tablinks').on('click', (event)=>{
+        $('#'+this.rootId + ' .tablinks').on('click', (event)=>{
             this.turnOn(event.target);
         })
 
@@ -978,13 +1035,43 @@ export class ReportTable{
         $('.report-searchresult [name="load-tree"]').on('click', async (event)=>{
             let storage = localStorage.getItem('report.checkboxSelected');
             let storageArray = JSON.parse(storage || '[]');
+            let newCheckboxSelected = {
+                fields:{},
+                refers: {},
+                groupby:[],
+                referSelected:[],
+                referConditions:[],
+                sql:'',
+                sobject:this.reportObjectName||'Order'
+            }
+
+            if (this.reportObjectName){
+                storageArray.push({name:'New Report '+this.reportObjectName + ' '+Math.floor(Math.random() * 1000), check:newCheckboxSelected});
+            }
+            for (let item of storageArray){
+                item.id = item.id || this.tree.getUuid();
+            }
             let selectItem = await this.openReportSelectModal(storageArray);
+
             if (!selectItem){
                 return;
             }
-            this.reportItemName = selectItem;
-            this.updateReportCheck(selectItem || 'default');
-            this.createNavigationTree($('.report-searchresult #object-field-tree-content'), this.reportObjectName);
+            let selectedItem = storageArray.find(e =>e.id == selectItem.id);
+            selectedItem.name = selectItem.name;
+            let lastOne = storageArray.pop();
+            if (lastOne.id == selectItem.id){
+                storageArray.push(lastOne);
+            }
+            for (let item of storageArray){
+                item.lastSelected = item.id == selectItem.id;
+            }
+            localStorage.setItem('report.checkboxSelected', JSON.stringify(storageArray));
+
+            this.reportItemName = selectedItem.check.sobject || 'Order';
+            this.reportItemId = selectedItem.id;
+            this.updateReportCheck(selectedItem.name || 'default', newCheckboxSelected);
+            this.setReportObjectName(selectedItem.check.sobject);
+            this.createNavigationTree($('.report-searchresult #object-field-tree-content'), selectedItem.check.sobject);
             this.createGroupByPanel();
         })
 
@@ -1003,51 +1090,11 @@ export class ReportTable{
         })
 
         $('.report-searchresult [name="load-show-save"]').on('click', (event)=>{
-            let soql = $('#report-soql').val();
-            let checkboxSelected = {
-                fields:this.updatedSelect,
-                refers: this.updatedReferSelect,
-                groupby:this.fieldGroupBy,
-                referSelected:this.referSelected,
-                referConditions:this.referConditions,
-                sql:soql,
-                sobject:this.reportObjectName
-            }
-
-            let storage = localStorage.getItem('report.checkboxSelected');
-            let storageArray = JSON.parse(storage || '[]');
-
-            let selectItem = this.reportItemName || 'default';
-            let defaultStorage = storageArray.find(e=>{
-                return e.name == selectItem;
-            })
-            if (!defaultStorage){
-                storageArray.push({name:selectItem, check:checkboxSelected});
-            }else{
-                defaultStorage.check = checkboxSelected;
-            }
-
-            localStorage.setItem('report.checkboxSelected', JSON.stringify(storageArray));
+            this.handleSave(event);
         })
 
         $('.report-searchresult [name="load-show-saveas"]').on('click', async (event)=>{
-            let soql = $('#report-soql').val();
-            let checkboxSelected = {
-                fields:this.updatedSelect,
-                refers: this.updatedReferSelect,
-                groupby:this.fieldGroupBy,
-                referSelected:this.referSelected,
-                referConditions:this.referConditions,
-                sql:soql,
-                sobject:this.reportObjectName
-            }
-            let newReportName = await this.openModal();
-            if (newReportName){
-                let storage = localStorage.getItem('report.checkboxSelected');
-                let storageArray = JSON.parse(storage || '[]');
-                storageArray.push({name:newReportName, check:checkboxSelected});
-                localStorage.setItem('report.checkboxSelected', JSON.stringify(storageArray));
-            }
+            this.handleSaveas(event);
         })
 
         
@@ -1066,13 +1113,13 @@ export class ReportTable{
         })
 
         $('.report-searchresult [name="load-show-groupby"]').on('click', (event)=>{
-            if ($('#object-field-tree-content').is('.hide')){
-                $('#object-field-tree-content').removeClass('hide');
-                $('#object-field-tree-groupby').addClass('hide');
-            }else{
-                $('#object-field-tree-content').addClass('hide');
+            if ($('#object-field-tree-groupby').is('.hide')){
+                //$('#object-field-tree-content').removeClass('hide');
                 $('#object-field-tree-groupby').removeClass('hide');
                 this.createGroupByPanel();
+            }else{
+                //$('#object-field-tree-content').addClass('hide');
+                $('#object-field-tree-groupby').addClass('hide');
             }
         })
 
@@ -1084,6 +1131,31 @@ export class ReportTable{
             }
         })
 
+        $('.report-searchresult [name="load-show-reset"]').on('click', (event)=>{
+            this.updatedSelect = {Id:true};
+            this.updatedReferSelect = {Id:true};
+            this.fieldGroupBy = [];
+            this.referSelected = ['Id'];
+            this.referConditions = [];
+            this.createGroupByPanel();
+            $('.report-condition-input').val();
+            this.createNavigationTree($('.report-searchresult #object-field-tree-content'), this.reportObjectName);
+            this.createGroupByPanel();
+
+            let checkboxSelected = {
+                fields:this.updatedSelect,
+                refers: {},
+                groupby:[],
+                referSelected:this.referSelected,
+                referConditions:[],
+                sobject:this.reportObjectName
+                
+            }
+            this.loadRecoeds(checkboxSelected);
+        })
+
+        
+
         $('.report-searchresult').on('change', '.report-condition-input', (event)=>{
             let val = $(event.target).val();
             let conditions = val.split('\n');
@@ -1091,72 +1163,12 @@ export class ReportTable{
             this.referConditions = conditions.filter(e=>e);
         })
 
-        $('#reporttableid').on('click', 'span.download-apexlog', (event)=>{
+        $('.report-searchresult').on('click', 'span.download-apexlog', (event)=>{
             let logId = $(event.currentTarget).attr('name');
             this.load(logId);
         })
 
-        let getDropNode = (target)=>{
-            while(target){
-                if (target.dataset?.drop){
-                    return target;
-                }
-                target = target.parentNode;
-            }
-            return null;
-        }
-
-        let effectAllowed = '';
-
-        $('#object-field-tree-groupby').on('dragstart',(event)=>{
-            let dropNode = getDropNode(event.target);
-            $(dropNode).addClass('drop-start')
-            effectAllowed = dropNode.dataset.effect;
-            console.log('start', dropNode);
-            console.log(dropNode.dataset.effect);
-            this.source = event.target;
-        })
-
-        $('#object-field-tree-groupby').on('dragover',(event)=>{
-            event.preventDefault();
-        })
-
-        $('#object-field-tree-groupby').on('dragenter',(event)=>{
-            $('#object-field-tree-groupby .drop-over').removeClass('drop-over');
-            $('#object-field-tree-groupby .drop-start').removeClass('drop-over-delete');
-
-            
-            let dropNode = getDropNode(event.target);
-            console.log('dragenter',dropNode);
-            console.log(event.dataTransfer?.effectAllowed);
-            if (dropNode && dropNode.dataset.drop === effectAllowed && this.source != dropNode){
-                $(dropNode).addClass('drop-over')
-            }else if (dropNode && dropNode.dataset.drop === 'delete' && this.source != dropNode){
-                $(dropNode).addClass('drop-over-delete')
-            }
-        })
-
-        $('#object-field-tree-groupby').on('drop',(event)=>{
-            $('#object-field-tree-groupby .drop-over').removeClass('drop-over');
-            $('#object-field-tree-groupby .drop-start').removeClass('drop-start');
-            $('#object-field-tree-groupby .drop-start').removeClass('drop-over-delete');
-            let dropNode = getDropNode(event.target);
-            if (dropNode && dropNode.dataset.drop === effectAllowed && this.source && this.source != dropNode){
-                if (dropNode.dataset.drop === 'copy'){
-                    let cloned = this.source.cloneNode(true);
-                    cloned.dataset.effect='copy';
-
-                    $(dropNode).before(cloned);
-
-                    this.source.remove();
-
-                    this.sortSelected();
-                }
-            }else if (dropNode && dropNode.dataset.drop === 'delete' && this.source && this.source != dropNode){
-                this.source.remove();
-                this.sortSelected();
-            }
-        })
+        
         
 
         $('#report-refreshSObjectReports').on('click', (event)=>{
@@ -1215,6 +1227,9 @@ export class ReportTable{
 
         $('#object-field-tree-groupby').on('click', '.checkbox-wrapper', (event)=>{
             if ($(event.target).is('input')){
+                return;
+            }
+            if (!$(event.target).is('rect')){
                 return;
             }
             $(event.currentTarget).find('input').click();
@@ -1283,9 +1298,198 @@ export class ReportTable{
                     this.updatedReferSelect[path]=false;
                 }
             }
+            this.createGroupByPanel();
+        })
+
+        $('#report-fieldearch').on('change', (event)=>{
+            let searchkey = $(event.currentTarget).val();
+            this.handleTreeSearch(searchkey);
+        })
+
+        $('#report-fieldearch').on('keyup', (event)=>{
+            let searchkey = $(event.currentTarget).val();
+            this.handleTreeSearch(searchkey);
+        })
+
+        $('.report-searchresult .sibar').on('dblclick', ()=>{
+            if ($('.report-searchresult .left-panel').is('.hide-left')){
+                $('.report-searchresult .left-panel').removeClass('hide-left');
+            }else{
+                $('.report-searchresult .left-panel').addClass('hide-left');
+            }
+            
         })
 
         Tools.setAutoComplete('report-sobjectsearch', this.tree);
+
+        this.addDraggingEvent();
+    }
+
+    addDraggingEvent(){
+        let getDropNode = (target)=>{
+            while(target){
+                if (target.dataset?.drop){
+                    return target;
+                }
+                target = target.parentNode;
+            }
+            return null;
+        }
+
+        let effectAllowed = '';
+
+        let sourceNode = null;
+        let getDragparent = ()=>{
+            return $('#object-field-tree-groupby .drag-container')[0];
+        }
+
+        $('#object-field-tree-groupby').on('dragstart','.drag-container',(e)=>{
+            setTimeout(()=>{
+                $(e.target).addClass('moving');
+            },0);
+            sourceNode = getDropNode(e.target);
+        })
+
+        $('#object-field-tree-groupby').on('dragenter','.drag-container',(e)=>{
+            let targetNode = getDropNode(e.target);
+            if(!sourceNode || !targetNode || e.target=== getDragparent() || targetNode ===sourceNode){
+                return;
+            }
+            let children = [... getDragparent().children];
+            let sourceIndex = children.indexOf(sourceNode);
+            let targetIndex = children.indexOf(targetNode);
+            console.log('enter:',targetNode);
+            if (sourceIndex < targetIndex){
+                getDragparent().insertBefore(sourceNode,targetNode.nextElementSibling);
+            }else{
+                getDragparent().insertBefore(sourceNode, targetNode);
+            }
+        })
+        $('#object-field-tree-groupby').on('dragover','.drag-container',(e)=>{
+            e.preventDefault();
+        })
+
+        $('#object-field-tree-groupby').on('dragend','.drag-container',(e)=>{
+            if (sourceNode){
+                $(sourceNode).removeClass('moving');
+            }
+        })
+
+        $('#object-field-tree-groupby1').on('dragstart',(event)=>{
+            let dropNode = getDropNode(event.target);
+            $(dropNode).addClass('drop-start')
+            effectAllowed = dropNode.dataset.effect;
+            console.log('start', dropNode);
+            console.log(dropNode.dataset.effect);
+            this.source = event.target;
+        })
+
+        $('#object-field-tree-groupby1').on('dragover',(event)=>{
+            event.preventDefault();
+        })
+
+        $('#object-field-tree-groupby1').on('dragenter',(event)=>{
+            $('#object-field-tree-groupby .drop-over').removeClass('drop-over');
+            $('#object-field-tree-groupby .drop-start').removeClass('drop-over-delete');
+
+            
+            let dropNode = getDropNode(event.target);
+            console.log('dragenter',dropNode);
+            console.log(event.dataTransfer?.effectAllowed);
+            if (dropNode && dropNode.dataset.drop === effectAllowed && this.source != dropNode){
+                $(dropNode).addClass('drop-over')
+            }else if (dropNode && dropNode.dataset.drop === 'delete' && this.source != dropNode){
+                $(dropNode).addClass('drop-over-delete')
+            }
+        })
+
+        $('#object-field-tree-groupby1').on('drop',(event)=>{
+            $('#object-field-tree-groupby .drop-over').removeClass('drop-over');
+            $('#object-field-tree-groupby .drop-start').removeClass('drop-start');
+            $('#object-field-tree-groupby .drop-start').removeClass('drop-over-delete');
+            let dropNode = getDropNode(event.target);
+            if (dropNode && dropNode.dataset.drop === effectAllowed && this.source && this.source != dropNode){
+                if (dropNode.dataset.drop === 'copy'){
+                    let cloned = this.source.cloneNode(true);
+                    cloned.dataset.effect='copy';
+
+                    $(dropNode).before(cloned);
+
+                    this.source.remove();
+
+                    this.sortSelected();
+                }
+            }else if (dropNode && dropNode.dataset.drop === 'delete' && this.source && this.source != dropNode){
+                this.source.remove();
+                this.sortSelected();
+            }
+        })
+    }
+
+    async handleSave(event){
+        let soql = $('#report-soql').val();
+        let checkboxSelected = {
+            fields:this.updatedSelect,
+            refers: this.updatedReferSelect,
+            groupby:this.fieldGroupBy,
+            referSelected:this.referSelected,
+            referConditions:this.referConditions,
+            sql:soql,
+            sobject:this.reportObjectName
+        }
+
+        let storage = localStorage.getItem('report.checkboxSelected');
+        let storageArray = JSON.parse(storage || '[]');
+
+        let selectItem = this.reportItemId || 'default';
+        let defaultStorage = storageArray.find(e=>{
+            return e.id == selectItem;
+        })
+        if (!defaultStorage){
+            storageArray.push({name:this.reportItemName || 'default', check:checkboxSelected, id:this.tree.getUuid()});
+            this.reportItemId = storageArray[storageArray.length -1].id;
+        }else{
+            defaultStorage.check = checkboxSelected;
+        }
+
+        localStorage.setItem('report.checkboxSelected', JSON.stringify(storageArray));
+    }
+
+    async handleSaveas(event){
+        let soql = $('#report-soql').val();
+        let checkboxSelected = {
+            fields:this.updatedSelect,
+            refers: this.updatedReferSelect,
+            groupby:this.fieldGroupBy,
+            referSelected:this.referSelected,
+            referConditions:this.referConditions,
+            sql:soql,
+            sobject:this.reportObjectName
+        }
+        let newReportName = await this.openModal();
+        if (newReportName){
+            let storage = localStorage.getItem('report.checkboxSelected');
+            let storageArray = JSON.parse(storage || '[]');
+            storageArray.push({name:newReportName.name, check:checkboxSelected, id:this.tree.getUuid()});
+            localStorage.setItem('report.checkboxSelected', JSON.stringify(storageArray));
+        }
+    }
+    handleTreeSearch(searchKey){
+        if (!searchKey || !searchKey.trim()){
+            $('#object-field-tree-content li.pop-menu-item').show();
+        }
+        let localLowercaseKey = searchKey.toLocaleLowerCase();
+        $('#object-field-tree-content li.pop-menu-item').each((i, element)=>{
+            if($(element).find('ul').length > 0){
+                return;
+            }
+            let value = $(element).children('span.item-name').text();
+            if (value.toLocaleLowerCase().indexOf(localLowercaseKey) != -1){
+                $(element).show();
+            }else{
+                $(element).hide();
+            }
+        })
     }
 
     initModalEvent(){
@@ -1293,20 +1497,20 @@ export class ReportTable{
 
         
         
-        $('#showreportinfo .open-modal').on('click', ()=> {
-            $('#showreportinfo [data-modal]').addClass('modal--open').fadeIn();
+        $('#'+this.rootId + ' .open-modal').on('click', ()=> {
+            $('#'+this.rootId + ' [data-modal]').addClass('modal--open').fadeIn();
 
         })
         
         // close on click of button
-        $('#showreportinfo .modal-report-save [data-modal-close]').on('click', (event)=> {
-            $('#showreportinfo [data-modal].modal-report-save').removeClass('modal--open').fadeOut();
+        $('#'+this.rootId + ' .modal-report-save [data-modal-close]').on('click', (event)=> {
+            $('#'+this.rootId + ' [data-modal].modal-report-save').removeClass('modal--open').fadeOut();
 
             this.closeModal(event.target.dataset.text);
         })
 
-        $('#showreportinfo .modal-report-select [data-modal-close]').on('click', (event)=> {
-            $('#showreportinfo [data-modal].modal-report-select').removeClass('modal--open').fadeOut();
+        $('#'+this.rootId + ' .modal-report-select [data-modal-close]').on('click', (event)=> {
+            $('#'+this.rootId + ' [data-modal].modal-report-select').removeClass('modal--open').fadeOut();
 
             this.closeReportSelectModal(event.target.dataset.text);
         })
@@ -1314,7 +1518,7 @@ export class ReportTable{
         
         
         // open on click of button
-        $('#showreportinfo [data-modal-open]').on('click', (event)=>{
+        $('#'+this.rootId + ' [data-modal-open]').on('click', (event)=>{
             //$('#showreportinfo [data-modal]').addClass('modal--open').fadeOut();
         })
 
@@ -1332,10 +1536,24 @@ export class ReportTable{
                 $(event.currentTarget).find('input').prop("checked",true);
             }
         })
+
+        $('.modal-report-select').on('click', '.btn-class-name', (event)=>{
+            //$('#showreportinfo [data-modal]').addClass('modal--open').fadeOut();
+            event.stopPropagation();
+            let newReportName = $(event.currentTarget).parent().siblings('input').val();
+            let storage = localStorage.getItem('report.checkboxSelected');
+            let storageArray = JSON.parse(storage || '[]');
+    
+            storageArray = storageArray.filter(e=>{
+                return e.id == newReportName;
+            })
+            localStorage.setItem('report.checkboxSelected', JSON.stringify(storageArray));
+            $(event.currentTarget).parents('div.option').remove();
+        })
     }
 
     openModal(){
-        $('#showreportinfo [data-modal].modal-report-save').addClass('modal--open').fadeIn();
+        $('#'+this.rootId + ' [data-modal].modal-report-save').addClass('modal--open').fadeIn();
 
         
 
@@ -1345,14 +1563,15 @@ export class ReportTable{
     }
 
     openReportSelectModal(items){
-        $('#showreportinfo [data-modal].modal-report-select').addClass('modal--open').fadeIn();
+        $('#'+this.rootId + ' [data-modal].modal-report-select').addClass('modal--open').fadeIn();
 
         let html = items.map(e=>{
             return `<div class="option">
-            <input type="radio" name="card" value="${e.name}" ${e.name =='default'?'checked':''}>
+            <input type="radio" name="card" value="${e.id}" ${e.id ==this.reportItemId?'checked':''}>
             <label for="${e.name}" aria-label="${e.name}">
                 <span></span>
-                ${e.name}
+                
+                <input class="report-select-name-input" type="text" value="${e.name}"></input>
                 <div class="card card--white card--sm">
                     <div class="card__chip"></div>
                     <div class="card__content">
@@ -1372,7 +1591,11 @@ export class ReportTable{
                     </div>
                     </div>
                 </div>
-                </label>
+                <button class="btn-class-name">
+                    <span class="back"></span>
+                    <span class="front"></span>
+                </button>
+            </label>
         </div>`
         }).join('')
         $('.rado-container').html(html);
@@ -1388,18 +1611,21 @@ export class ReportTable{
             newReportName = $('#report-new-report-name').val();
         }
         if (this.modalCallback){
-            this.modalCallback(newReportName);
+            this.modalCallback({name:newReportName});
             this.modalCallback = null;
         }
     }
 
     closeReportSelectModal(buttonType){
         let newReportName = null;
+        let newReportId = null;
         if (buttonType == 'Reply'){
-            newReportName = $('.rado-container input[name="card"]:checked').val();
+            newReportId = $('.rado-container input[name="card"]:checked').val();
+            
+            newReportName = $('.rado-container input[name="card"]:checked+label>input.report-select-name-input').val()
         }
         if (this.modalCallback){
-            this.modalCallback(newReportName);
+            this.modalCallback(newReportId?{id:newReportId, name:newReportName}:null);
             this.modalCallback = null;
         }
     }
@@ -1952,32 +2178,7 @@ export class ReportTable{
       }
 
       formatSQL(input){
-        // const config = {
-        //     language: language.options[language.selectedIndex].value,
-        //     tabWidth: tabWidth.value,
-        //     useTabs: useTabs.checked,
-        //     keywordCase: keywordCase.options[keywordCase.selectedIndex].value,
-        //     indentStyle: indentStyle.options[indentStyle.selectedIndex].value,
-        //     logicalOperatorNewline:
-        //       logicalOperatorNewline.options[logicalOperatorNewline.selectedIndex].value,
-        //     expressionWidth: expressionWidth.value,
-        //     lineBetweenQueries: lineBetweenQueries.value,
-        //     denseOperators: denseOperators.checked,
-        //     newlineBeforeSemicolon: newlineBeforeSemicolon.checked,
-        //   };
-        // refer  to https://sql-formatter-org.github.io/sql-formatter/
-          let config = {"language":"sql",
-            "tabWidth":"4",
-            "useTabs":false,
-            "keywordCase":"preserve",
-            "indentStyle":"standard",
-            "logicalOperatorNewline":"before",
-            "expressionWidth":"50",
-            "lineBetweenQueries":"1",
-            "denseOperators":false,
-            "newlineBeforeSemicolon":false
-        }
-          return sqlFormatter.format(input, config);
+          return this.tree.Tools.formatSQL(input);
       }
 
 
@@ -1985,162 +2186,5 @@ export class ReportTable{
             if (this.reportContent){
                 return this.reportContent;
             }
-            return `<?xml version="1.0" encoding="UTF-8"?>
-            <Report xmlns="http://soap.sforce.com/2006/04/metadata">
-                <columns>
-                    <field>Order$Channel_Type_Name__c</field>
-                </columns>
-                <columns>
-                    <field>Order$Business_Type__c</field>
-                </columns>
-                <columns>
-                    <field>Order.OrderItems$Product2.BU_Name__c</field>
-                </columns>
-                <columns>
-                    <field>Order.OrderItems$Product2.LOB__c</field>
-                </columns>
-                <columns>
-                    <field>Order.OrderItems$Rev_Account_Group_ID__c</field>
-                </columns>
-                <columns>
-                    <field>Order.OrderItems$Product2.ProductCode</field>
-                </columns>
-                <columns>
-                    <field>Order.OrderItems$SKU__c</field>
-                </columns>
-                <columns>
-                    <field>Order.OrderItems$Product2.Product_Name_External__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Ordered_Qty__c</field>
-                </columns>
-                <columns>
-                    <field>Order.OrderItems$Pricing_Plan_Step_Reference__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Base_OneTime_Charge__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$HKT_Item_Discount_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Third_Party_Item_Discount_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$CP_Burn__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Dist_HKT_Aggr_Discount_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Dist_Third_Party_Aggr_Discount_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Dist_HKT_Order_Discount_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Dist_Third_Party_Order_Discount_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Item_Discount_Coupon_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Dist_Order_Discount_Coupon_Amt__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$Return_Cancel_Request_Qty__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$vlocity_cmt__EffectiveQuantity__c</field>
-                </columns>
-                <columns>
-                    <aggregateTypes>Sum</aggregateTypes>
-                    <field>Order.OrderItems$vlocity_cmt__EffectiveOneTimeTotal__c</field>
-                </columns>
-                <currency>HKD</currency>
-                <description>Daily Sales Summary Report (Call Centre)</description>
-                <filter>
-                    <criteriaItems>
-                        <column>Order$Channel_Owner__c</column>
-                        <columnToColumn>false</columnToColumn>
-                        <isUnlocked>true</isUnlocked>
-                        <operator>equals</operator>
-                        <value>BU_MOB</value>
-                    </criteriaItems>
-                    <criteriaItems>
-                        <column>Order$Channel_Type__c</column>
-                        <columnToColumn>false</columnToColumn>
-                        <isUnlocked>true</isUnlocked>
-                        <operator>equals</operator>
-                        <value>CTY_MOB_CCS</value>
-                    </criteriaItems>
-                    <criteriaItems>
-                        <column>Order$RecordType</column>
-                        <columnToColumn>false</columnToColumn>
-                        <isUnlocked>true</isUnlocked>
-                        <operator>equals</operator>
-                        <value>Order.vlocity_cmt__StandardOrder</value>
-                    </criteriaItems>
-                    <criteriaItems>
-                        <column>Order.OrderItems$Item_Type__c</column>
-                        <columnToColumn>false</columnToColumn>
-                        <isUnlocked>true</isUnlocked>
-                        <operator>equals</operator>
-                        <value>Advance,Deposit,Normal</value>
-                    </criteriaItems>
-                    <criteriaItems>
-                        <column>Order$Custom_OrderStatus__c</column>
-                        <columnToColumn>false</columnToColumn>
-                        <isUnlocked>true</isUnlocked>
-                        <operator>notEqual</operator>
-                        <value>Cancel Requested,Cancelled,Cancel In Progress,Superseded,Expired</value>
-                    </criteriaItems>
-                    <language>en_US</language>
-                </filter>
-                <format>Summary</format>
-                <groupingsDown>
-                    <dateGranularity>Day</dateGranularity>
-                    <field>Order$Channel_Name__c</field>
-                    <sortOrder>Asc</sortOrder>
-                </groupingsDown>
-                <groupingsDown>
-                    <field>Order$EffectiveDate</field>
-                    <sortOrder>Asc</sortOrder>
-                </groupingsDown>
-                <groupingsDown>
-                    <dateGranularity>Day</dateGranularity>
-                    <field>Order.OrderItems$Item_Type__c</field>
-                    <sortOrder>Asc</sortOrder>
-                </groupingsDown>
-                <name>Daily Sales Summary Report 002</name>
-                <params>
-                    <name>co</name>
-                    <value>1</value>
-                </params>
-                <reportType>Order_Details__c</reportType>
-                <scope>organization</scope>
-                <showDetails>true</showDetails>
-                <showGrandTotal>true</showGrandTotal>
-                <showSubTotals>true</showSubTotals>
-                <timeFrameFilter>
-                    <dateColumn>Order$EffectiveDate</dateColumn>
-                    <interval>INTERVAL_TODAY</interval>
-                </timeFrameFilter>
-            </Report>
-            `
-
       }
 }

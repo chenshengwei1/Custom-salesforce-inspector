@@ -91,8 +91,10 @@ export class ApplicationLog{
             }
             else{
                 this.starting = false;
-                this.processingQty  += result.records.length;
-                this.lazyUpdate(result);
+                if (lastResuslt  == result){
+                    this.processingQty  += result.records.length;
+                    this.lazyUpdate(result);
+                }
                 $('#applog-btn-stop').attr('disabled', '');
                 this.loading(false);
             }
@@ -104,7 +106,7 @@ export class ApplicationLog{
         newRecords.forEach(e=>{
             if (this.keywords.length){
                 for (let key of this.keywords){
-                    if (e.Message__c.toLocaleLowerCase().indexOf(key) != -1){
+                    if (e.Message__c && e.Message__c.toLocaleLowerCase().indexOf(key) != -1){
                         e.match = true;
                         this.records.push(e);
                         return;

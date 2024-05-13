@@ -58,6 +58,7 @@
 	box-shadow: 0 0 .7em var(--solid),
 				0 0 2em var(--primary);
 }
+.btn-container .btn.loading .dot,
 .btn-container .btn:hover .dot,
 .btn-container .btn:focus .dot {
 	animation: atom 2s infinite linear;
@@ -376,15 +377,22 @@ table.table {
   }
 
 /** checkbox **/
+.checkbox-wrapper {
+	display: flex;
+  }
   .checkbox-wrapper input[type="checkbox"] {
 	display: none;
   }
 
-  
   .checkbox-wrapper .terms-label {
-	cursor: pointer;
-	display: flex;
-	align-items: center;
+    border: 1px solid #000000;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    margin: 0px;
+  }
+  .checkbox-wrapper .terms-label:hover {
+    border-color: #c59a9a;
   }
   
   .checkbox-wrapper .terms-label .label-text {
@@ -418,6 +426,12 @@ table.table {
   
   .checkbox-wrapper.empty-check{
     background-color: red;
+  }
+
+  .draggable.moving{
+    background: transparent;
+    color: transparent;
+    border: 1px dashed #ccc;
   }
 
 
@@ -614,7 +628,9 @@ h2#modal-heading-01 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 50px
+  margin: 50px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .rado-container [type="radio"] {
@@ -715,6 +731,54 @@ h2#modal-heading-01 {
   background-image: linear-gradient(to bottom, #3b4059, #1c1e2d);
 }
 
+.btn-class-name {
+  --primary: 255, 90, 120;
+  --secondary: 150, 50, 60;
+  width: 30px;
+  height: 25px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  outline: 10px solid rgb(var(--primary), .5);
+  border-radius: 100%;
+  position: relative;
+  transition: .3s;
+}
+.btn-class-name .back {
+  background: rgb(var(--secondary));
+  border-radius: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+.btn-class-name .front {
+  background: linear-gradient(0deg, rgba(var(--primary), .6) 20%, rgba(var(--primary)) 50%);
+  box-shadow: 0 .5em 1em -0.2em rgba(var(--secondary), .5);
+  border-radius: 100%;
+  position: absolute;
+  border: 1px solid rgb(var(--secondary));
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  font-family: inherit;
+  transform: translateY(-15%);
+  transition: .15s;
+  color: rgb(var(--secondary));
+}
+.btn-class-name:active .front {
+  transform: translateY(0%);
+  box-shadow: 0 0;
+}
 .card {
   position: relative;
   width: 243px;
@@ -751,7 +815,7 @@ h2#modal-heading-01 {
 }
 .card--sm {
   position: absolute;
-  right: -76px;
+  right: -10px;
   transform: scale(0.24);
 }
 .card__chip {
@@ -907,4 +971,60 @@ h2#modal-heading-01 {
     transform: scale(1.2) rotate(-20deg);
     box-shadow: 0.32476rem -2.1875rem 0 0rem #ff8080, -0.32476rem -1.8125rem 0 0rem #ffed80, 1.91274rem -1.10998rem 0 0rem #ffed80, 1.21459rem -1.38398rem 0 0rem #a4ff80, 2.06039rem 0.80338rem 0 0rem #a4ff80, 1.83932rem 0.0867rem 0 0rem #80ffc8, 0.65652rem 2.11178rem 0 0rem #80ffc8, 1.07901rem 1.4921rem 0 0rem #80c8ff, -1.24172rem 1.82996rem 0 0rem #80c8ff, -0.49382rem 1.77391rem 0 0rem #a480ff, -2.20492rem 0.17015rem 0 0rem #a480ff, -1.69479rem 0.71994rem 0 0rem #ff80ed, -1.50777rem -1.61779rem 0 0rem #ff80ed, -1.61955rem -0.87617rem 0 0rem #ff8080;
   }
+}
+
+/**  search box*/
+
+.search-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.search-box input[type=search] {
+  box-shadow: 10px 10px 4px rgba(0, 0, 0, 0.4);
+  background: #ffffff;
+  border: 2px solid #e7693b;
+  outline: none;
+  width: 250px;
+  height: 50px;
+  border-radius: 15px 0 0 15px;
+  font-size: 1.4em;
+  font-weight: 300;
+  padding: 0px 10px;
+  font-family: "Lato", sans-serif;
+  letter-spacing: 2px;
+  color: #e7693b;
+}
+
+::placeholder {
+  color: #7695a0;
+  font-size: 0.8em;
+}
+
+.search-box .search-btn {
+  box-shadow: 10px 10px 4px rgba(0, 0, 0, 0.4);
+  height: 50px;
+  width: 55px;
+  outline: none;
+  border-radius: 0 15px 15px 0;
+  background: #e7693b;
+  color: #ffffff;
+  border: none;
+  transition: all 0.3s ease;
+}
+.search-box .search-btn:hover {
+  transition: all 0.3s ease;
+}
+.search-box .search-btn:hover i {
+  font-size: 2.5em;
+}
+.search-box .search-btn i {
+  font-size: 2.3em;
+}
+.no-border{
+  border-width: 0px;
+}
+.no-border:focus {
+	border-width: 0px;
 }

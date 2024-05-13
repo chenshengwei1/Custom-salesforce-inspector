@@ -22,12 +22,12 @@ export class SObjectAllDataTable{
     }
     render(){
         return `
-            <div>${this.message}</dov>
+            <div>${this.message}</div>
             <table id="datatable" class="table">
                 <thead>
                     <tr class="row header blue">
                         ${this.showFields.concat(this.showRelatedFields).map(e=>{
-                            return `<th class="field-${e.name} cell" tabindex="0">${e.label||e.name}
+                            return `<th class="field-${e.name} cell" tabindex="0" title="${e.name}">${e.label||e.name}
                                 <button class="actions-button .comp-btn" name="${e.name}">
                                     <svg class="actions-icon">
                                         <use xlink:href="symbols.svg#${this.sortField[e.name]?.asc?'arrowdown':'arrowup'}"></use>
@@ -93,7 +93,7 @@ export class SObjectAllDataTable{
 
     get sobjectDescribe(){
          let dataMap = this.tree.dataMap[this.sobjectname];
-         return dataMap.sobjectDescribe;
+         return dataMap?.sobjectDescribe || {};
     }
 
     setSobjectname(sobjectname){
@@ -140,20 +140,21 @@ export class SObjectAllDataTable{
                 return element.indexOf(sobjectDescribe.name+'.')==0&&allChecked[element];
             });
 
+            
             this.showFields = sobjectDescribe.fields.filter(t=>{
                 return checkFields.indexOf(sobjectDescribe.name+'.'+t.name)>-1 || t.name=='Id' || t.nameField;
             }).sort((a, b)=>{
                 if (a.name == 'Id'){
-                    return 0;
+                    return -100000;
                 }
                 if (b.name == 'Id'){
-                    return 1;
+                    return 100000;
                 }
                 if (a.nameField){
-                    return 0;
+                    return -90000;
                 }
                 if (b.nameField){
-                    return 0;
+                    return 90000;
                 }
                 return a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase())
             })
@@ -521,30 +522,28 @@ export class SObjectAllDataTable{
             Object Search:
             <input class="search feedback-input" id="sobjectsearch2" type="input" value="Order" autocomplete="off" style="width:80%"></input>
             <button class="tablinks comp-btn" name="updateSelectObject" id="refreshSObjectSearch">Refersh</button>
+            <br/>
+            Page Size:
+                <input class="search feedback-input" id="objectsearchpagesizeinput" type="number" value="100" style="width:30%;line-height:1.5rem" autocomplete="off"></input>
         </p>
         <p>
-            <div style="padding:10px">Include:
-                <input class="search feedback-input" id="objectsearchinput" type="input" value="" style="width:50%;line-height:1.5rem"></input>
-                Page Size:
-                <input class="search feedback-input" id="objectsearchpagesizeinput" type="number" value="100" style="width:30%;line-height:1.5rem"></input>
-            </div>
-            <div style="padding:10px">Exclude:<input class="search feedback-input" id="excludeobjectsearchinput" type="input" value="" style="width:50%;line-height:1.5rem"></input></div>
             <div id="searchFilter"></div>
             Fields Value: <input class="search feedback-input" id="fieldvalyuesearch1" type="input" value=""></input>
             <button class="search comp-btn" id="sobjectsearchoffset" type="input" value="">More</button>
             <button class="search comp-btn" id="sobjectmorecondition" type="input" value="">More Condition</button>
             <div class="field-value-filter">
                 <div class="c-item">
-                    <input type="input" value="Id" id="uuid1" class="fieldname feedback-input"></input><input class="fieldvalue feedback-input" type="input" value=""></input><button class="btn-delete">-</button>
+                    <input type="input" value="Id" id="uuid1" class="fieldname feedback-input" autocomplete="off"></input><input autocomplete="off" class="fieldvalue feedback-input" id="uuid2" type="input" value=""></input><button class="btn-delete">-</button>
                 </div>
                 <button class="search btn-add comp-btn">Add</button>
+                <button class="search btn-add2 comp-btn">Add2</button>
             </div>
         </p>
         <div class="searchresult">
             <div class="totalbar"><span>Total Records : </span><span class="recordsnumber">0</span></div>
             <div class="totalbar" id="notificationmessage3"></div>
             <div class="totalbar" id="fieldShowFilterContainer"></div>
-            <div class="totalbar" id="relationShowFilterContainer"></div>
+            <div class="totalbar" id="relationShowFilterContainers"></div>
 
             <div class="objsearchresult"></div>
             <div class="detailearchresult"></div>
@@ -555,9 +554,9 @@ export class SObjectAllDataTable{
             treeroot.appendChild(div);
             $('#sobjectsearchoffset').hide();
             this.initObjectAllDataHead();
-            this.addFieldFilter('#fieldShowFilterContainer');
-            this.addRelationFieldFilter('#relationShowFilterContainer');
-            this.addSearchFiler('#searchFilter');
+            //this.addFieldFilter('#fieldShowFilterContainer');
+            this.addRelationFieldFilter('#relationShowFilterContainers');
+            //this.addSearchFiler('#searchFilter');
             this.searcherPiler = new Pilles('.field-value-filter');
 
             this.searcherPiler.valueChange = (items)=>{
@@ -583,16 +582,33 @@ export class SObjectAllDataTable{
         $('.field-value-filter .btn-add').on('click', (event)=>{
             let sobjectDescribe = this.sobjectDescribe;
             let uuid = this.tree.getUuid();
+            let opuuid = this.tree.getUuid();
 
             let fieldNames = sobjectDescribe.fields.map(e =>e.name);
             fieldNames.sort();
-            let allSelections = fieldNames.map(e=>`<option value="${e}">${e}</option>`)
+            let allSelections = fieldNames.map(e=>`<option value="${e}">${e}</option>`);
+
+            let options = ['=','<','>','>=','<=','<>','in','not in','like'];
+            let allOptions = options.map(e=>`<option value="${e}">${e}</option>`);
             $(`<div class="c-item">
             <select id="${uuid}" class="fieldname feedback-input main-style">
                 <option value="">Please select object</option>
                 ${allSelections}
             </select>
+            <select id="${opuuid}" class="fieldoption">
+                ${allOptions}
+            </select>
             <span class="fieldvalue-container"><input class="fieldvalue feedback-input" type="input" value=""></input></span>
+            <button class="btn-delete">-</button></div>`).insertBefore( $( event.target));
+            //new AutoComplete1(uuid,sobjectDescribe.fields.map(e=>e.name)).createApi();
+        })
+
+        $('.field-value-filter .btn-add2').on('click', (event)=>{
+            $(`<div class="c-item inputonly">
+            <input class="fieldname feedback-input main-style"></input>
+            <span class="fieldvalue-container">
+                <input class="fieldvalue feedback-input" type="input" value=""></input>
+            </span>
             <button class="btn-delete">-</button></div>`).insertBefore( $( event.target));
 
             //new AutoComplete1(uuid,sobjectDescribe.fields.map(e=>e.name)).createApi();
@@ -652,35 +668,33 @@ export class SObjectAllDataTable{
             this.fieldCondition = {};
             $('.field-value-filter .c-item').each((index, elem)=>{
                 let field = $(elem).find('select.fieldname').val();
+                field = field || $(elem).find('input.fieldname').val();
+
+                let option = $(elem).find('select.fieldoption').val();
+
                 let value = $(elem).find('input.fieldvalue').val()||$(elem).find('select.fieldvalue').val();
                 if (!value){
                     value =  $(elem).find('input.fieldvalue').is(':checked');
                     value = value && (value+'');
                 }
+                if (value){
+                    value = value.trim();
+                    let options = ['<=','>=','=','<>','<','>','like','in','not in'];
+                    for (let opt of options){
+                        if (value.startsWith(opt)){
+                            option = opt;
+                            value = value.substr(opt.length).trim();
+                            break;
+                        }
+                    }
+                }
                 if (value && field){
                     this.fieldCondition[field]=value.trim();
+                    this.fieldCondition[field+'.option'] = option;
                 }
             })
             this.doUpdaate();
         })
-
-        $('#objectsearchinput').on('keypress', (event)=>{
-            if (event.keyCode==13){
-                let searchKey = $(event.target).val();
-                this.recordCondition.include = searchKey;
-                this.filterRecords();
-            }
-        })
-
-        $('#excludeobjectsearchinput').on('keypress', (event)=>{
-            if (event.keyCode==13){
-                let searchKey = $(event.target).val();
-                this.recordCondition.exclude = searchKey;
-                this.filterRecords();
-            }
-        })
-
-       
 
         let autoComplete1 = new AutoComplete1('sobjectsearch2',()=>{
             return this.tree.allSObjectApi.map(e=>{return e.global});
@@ -714,7 +728,160 @@ export class SObjectAllDataTable{
             }
         })
         autoComplete1.createApi();
-        autoComplete1.start(AutoComplete1);
+
+        
+        let autoComplete2 = new AutoComplete1('uuid1',()=>{
+            let sobjectDescribe = this.sobjectDescribe;
+            let fieldNames = sobjectDescribe?.fields;
+            return fieldNames||[];
+        });
+        autoComplete2.setItemProvider({
+            value:(item)=>{
+                return item.name;
+            },
+            label:(item, defval)=>{
+                let queryable = item.queryable;
+                if (!queryable){
+                    return `<span style="">${defval}</span> `;
+                }
+                return item.label + '('+defval+')';
+            },
+            filter:(valueArr, word)=>{
+                try{
+                    var reg = new RegExp("(" + word + ")","i");
+                }
+                catch (e){
+                    var reg = new RegExp("(.*)","i");
+                }
+                let matchItems = [];
+                for(var i=0;i<valueArr.length;i++){
+                    let item=valueArr[i];
+                    if(reg.test(item.name) || reg.test(item.label)){
+                        matchItems.push(item);
+                    }
+                }
+                return matchItems;
+            }
+        })
+        autoComplete2.createApi();
+
+        let autoCompleten = new AutoComplete1('.c-item>input.fieldname',()=>{
+            let sobjectDescribe = this.sobjectDescribe;
+            let fieldNames = sobjectDescribe?.fields;
+            return fieldNames||[];
+        });
+        autoCompleten.setItemProvider({
+            value:(item)=>{
+                return item.name;
+            },
+            label:(item, defval)=>{
+                let queryable = item.queryable;
+                if (!queryable){
+                    return `<span style="">${defval}</span> `;
+                }
+                return item.label + '('+defval+')';
+            },
+            filter:(valueArr, word)=>{
+                try{
+                    var reg = new RegExp("(" + word + ")","i");
+                }
+                catch (e){
+                    var reg = new RegExp("(.*)","i");
+                }
+                let matchItems = [];
+                for(var i=0;i<valueArr.length;i++){
+                    let item=valueArr[i];
+                    if(reg.test(item.name) || reg.test(item.label)){
+                        matchItems.push(item);
+                    }
+                }
+                return matchItems;
+            }
+        })
+        autoCompleten.createApi2();
+
+        let autoCompleten2 = new AutoComplete1('.c-item.inputonly input.fieldvalue',()=>{
+            if (!autoCompleten.currentFocus){
+                return;
+            }
+            let selectField = $(autoCompleten.currentFocus).val();
+            if (!selectField){
+                return [];
+            }
+            let sobjectDescribe = this.sobjectDescribe;
+            let fieldObj = sobjectDescribe?.fields?.find(e=>e.name == selectField);
+            return fieldObj?.picklistValues || [];
+        });
+        autoCompleten2.setItemProvider({
+            value:(item)=>{
+                return item.value;
+            },
+            label:(item, defval)=>{
+                let queryable = item.queryable;
+                if (!queryable){
+                    return `<span style="">${defval}</span> `;
+                }
+                return item.label + '('+defval+')';
+            },
+            filter:(valueArr, word)=>{
+                try{
+                    var reg = new RegExp("(" + word + ")","i");
+                }
+                catch (e){
+                    var reg = new RegExp("(.*)","i");
+                }
+                let matchItems = [];
+                for(var i=0;i<valueArr.length;i++){
+                    let item=valueArr[i];
+                    if(reg.test(item.value) || reg.test(item.label)){
+                        matchItems.push(item);
+                    }
+                }
+                return matchItems;
+            }
+        })
+        autoCompleten2.createApi2();
+
+        
+
+        let autoComplete3 = new AutoComplete1('uuid2',()=>{
+            let selectField = $('#uuid1').val();
+            if (!selectField){
+                return [];
+            }
+            let sobjectDescribe = this.sobjectDescribe;
+            let fieldObj = sobjectDescribe?.fields?.find(e=>e.name == selectField);
+            return fieldObj?.picklistValues || [];
+        });
+        autoComplete3.setItemProvider({
+            value:(item)=>{
+                return item.value;
+            },
+            label:(item, defval)=>{
+                let queryable = item.queryable;
+                if (!queryable){
+                    return `<span style="">${defval}</span> `;
+                }
+                return item.label + '('+defval+')';
+            },
+            filter:(valueArr, word)=>{
+                try{
+                    var reg = new RegExp("(" + word + ")","i");
+                }
+                catch (e){
+                    var reg = new RegExp("(.*)","i");
+                }
+                let matchItems = [];
+                for(var i=0;i<valueArr.length;i++){
+                    let item=valueArr[i];
+                    if(reg.test(item.value) || reg.test(item.label)){
+                        matchItems.push(item);
+                    }
+                }
+                return matchItems;
+            }
+        })
+        autoComplete3.createApi();
       }
 
     formatDate(inputDate, format){

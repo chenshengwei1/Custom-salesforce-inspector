@@ -4,8 +4,18 @@ export class sfConn1{
         this.instanceHostname;
         this.sessionId;
         this.conversation = {};
-        this.message = 'initial....';
+        this.message = this.error('initial....');
+        this.processMap = {};
     }
+
+    info(message){
+      return {type:'info', message:message};
+    }
+
+    error(message){
+      return {type:'error', message:message};
+    }
+
     async getSession(sfHost) {
         let message = await new Promise(resolve =>
           chrome.runtime.sendMessage({message: "getSession", sfHost}, resolve));
@@ -39,14 +49,21 @@ export class sfConn1{
         return Object.keys(conversation);
     }
 
+    getNetwork(){
+      return {...this.processMap};
+    }
+
     async rest(url, {logErrors = true, responseType="json",method = "GET", api = "normal", body = undefined, bodyType = "json", headers = {}, progressHandler = null} = {}) {
         if (!this.instanceHostname || !this.sessionId) {
-          this.message = 'Session not found';
+          this.message = this.error('Session not found');
           throw new Error("Session not found");
         }
 
         let history = JSON.parse(localStorage['urls']||'[]');
         if (history.indexOf(url)==-1){
+          if (history.length>1000){
+            history.shift();
+          }
           history.push(url);
           localStorage['urls'] = JSON.stringify(history);
         }
@@ -62,7 +79,7 @@ export class sfConn1{
         } else if (api == "normal") {
           xhr.setRequestHeader("Authorization", "Bearer " + this.sessionId);
         } else {
-          this.message = 'Unknown api';
+          this.message = this.error('Unknown api');
           throw new Error("Unknown api");
         }
 
@@ -73,7 +90,7 @@ export class sfConn1{
           } else if (bodyType == "raw") {
             // Do nothing
           } else {
-            this.message = 'Unknown bodyType';
+            this.message = this.error('Unknown bodyType');
             throw new Error("Unknown bodyType");
           }
         }
@@ -83,10 +100,13 @@ export class sfConn1{
         }
 
         xhr.responseType = responseType || "json";
+        let times = new Date().getTime()+Math.random();
+        this.processMap[times] = url;
+        window.updateMessageBar();
         await new Promise((resolve, reject) => {
           if (progressHandler) {
             progressHandler.abort = () => {
-              this.message = 'The request was aborted.';
+              this.message = this.error('The request was aborted.');
               let err = new Error("The request was aborted.");
               err.name = "AbortError";
               reject(err);
@@ -101,15 +121,17 @@ export class sfConn1{
           };
           xhr.send(body);
         });
+        delete this.processMap[times];
+        window.updateMessageBar();
         if (xhr.status >= 200 && xhr.status < 300) {
-          this.message = 'status ' + xhr.status;
+          this.message = this.info('status ' + xhr.status);
           return xhr.response;
         } else if (xhr.status == 0) {
           if (!logErrors) { console.error("Received no response from Salesforce REST API", xhr); }
           let err = new Error();
           err.name = "SalesforceRestError";
           err.message = "Network error, offline or timeout";
-          this.message = 'Network error, offline or timeout';
+          this.message = this.error('Network error, offline or timeout');
           throw err;
         } else {
           if (!logErrors) { console.error("Received error response from Salesforce REST API", xhr); }
@@ -123,7 +145,7 @@ export class sfConn1{
           }
           if (!err.message) {
             err.message = "HTTP error " + xhr.status + " " + xhr.statusText;
-            this.message = err.message;
+            this.message = this.error(err.message);
           }
           throw err;
         }
@@ -179,6 +201,9 @@ export class sfConn1{
         });
 
         xhr.responseType = "document";
+        let times = new Date().getTime()+Math.random();
+        this.processMap[times] = "https://" + this.instanceHostname + wsdl.servicePortAddress;
+        window.updateMessageBar();
         await new Promise(resolve => {
           xhr.onreadystatechange = () => {
             if (xhr.readyState == 4) {
@@ -187,6 +212,8 @@ export class sfConn1{
           };
           xhr.send(requestBody);
         });
+        delete this.processMap[times];
+        window.updateMessageBar();
         if (xhr.status == 200) {
           let responseBody = xhr.response.querySelector(method + "Response");
           let parsed = XML.parse(responseBody).result;
@@ -201,7 +228,7 @@ export class sfConn1{
           } catch (ex) {
             err.message = "HTTP error " + xhr.status + " " + xhr.statusText;
           }
-          this.message = err.message;
+          this.message = this.error(err.message);
           throw err;
         }
       }

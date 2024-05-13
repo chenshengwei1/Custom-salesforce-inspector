@@ -213,7 +213,6 @@ export class Tools {
           }
       })
       autoComplete1.createApi();
-      autoComplete1.start(AutoComplete1);
     }
 
     static formatDate (inputDate, format)  {
@@ -233,4 +232,152 @@ export class Tools {
   
       return format.replace(/yyyy|MM|dd|HH|hh|mm|ss|tt/g, (match) => parts[match]);
   }
+
+  static formatSQL(input){
+      let config = {"language":"sql",
+        "tabWidth":"4",
+        "useTabs":false,
+        "keywordCase":"preserve",
+        "indentStyle":"standard",
+        "logicalOperatorNewline":"before",
+        "expressionWidth":"50",
+        "lineBetweenQueries":"1",
+        "denseOperators":false,
+        "newlineBeforeSemicolon":false
+    }
+    try{
+      return sqlFormatter.format(input, config);
+    }catch(e){
+      console.log('format soql error:', e.stack);
+      return input;
+    }
+  }
+
+  static discoverColumns(expRecords){
+    let columnIdx = new Map();
+    let header = ["_"];
+    
+    function discoverColumns1(record, prefix, row) {
+      for (let field in record) {
+        if (field == "attributes") {
+          continue;
+        }
+        let column = prefix + field;
+        let c;
+        if (columnIdx.has(column)) {
+          c = columnIdx.get(column);
+        } else {
+          c = header.length;
+          columnIdx.set(column, c);
+          
+          header[c] = column;
+        }
+        row[c] = record[field];
+        if (typeof record[field] == "object" && record[field] != null) {
+          discoverColumns1(record[field], column + ".", row);
+        }
+      }
+    }
+
+    
+    for (let record of expRecords) {
+      let row = new Array(header.length);
+      row[0] = record;
+      
+      discoverColumns1(record, "", row);
+    }
+    return header;
+  }
+
+
+  static exportExcel(dataList){
+
+    let columnIdx = new Map();
+    let header = ["_"];
+    let records = [];
+    let rowVisibilities = [];
+    let table = [];
+
+    function discoverColumns(record, prefix, row) {
+      for (let field in record) {
+        if (field == "attributes") {
+          continue;
+        }
+        let column = prefix + field;
+        let c;
+        if (columnIdx.has(column)) {
+          c = columnIdx.get(column);
+        } else {
+          c = header.length;
+          columnIdx.set(column, c);
+          for (let row of table) {
+            row.push(undefined);
+          }
+          header[c] = column;
+        }
+        row[c] = record[field];
+        if (typeof record[field] == "object" && record[field] != null) {
+          discoverColumns(record[field], column + ".", row);
+        }
+      }
+    }
+
+    let addToTable=(expRecords) =>{
+      records = records.concat(expRecords);
+      if (table.length == 0 && expRecords.length > 0) {
+        table.push(header);
+        rowVisibilities.push(true);
+      }
+      for (let record of expRecords) {
+        let row = new Array(header.length);
+        row[0] = record;
+        table.push(row);
+        discoverColumns(record, "", row);
+      }
+    }
+
+    addToTable(dataList);
+
+   
+    function cellToString(cell) {
+      if (cell == null) {
+        return "";
+      } else if (typeof cell == "object" && cell.attributes && cell.attributes.type) {
+        return "[" + cell.attributes.type + "]";
+      } else {
+        return "" + cell;
+      }
+    }
+    
+  let csvSerialize = separator => table.map(row => row.map(cell => "\"" + cellToString(cell).split("\"").join("\"\"") + "\"").join(separator)).join("\r\n");
+  
+  
+  
+   function copyToClipboard(value) {
+    // Use execCommand to trigger an oncopy event and use an event handler to copy the text to the clipboard.
+    // The oncopy event only works on editable elements, e.g. an input field.
+    let temp = document.createElement("input");
+    // The oncopy event only works if there is something selected in the editable element.
+    temp.value = "temp";
+    temp.addEventListener("copy", e => {
+      e.clipboardData.setData("text/plain", value);
+      e.preventDefault();
+    });
+    document.body.appendChild(temp);
+    try {
+      // The oncopy event only works if there is something selected in the editable element.
+      temp.select();
+      // Trigger the oncopy event
+      let success = document.execCommand("copy");
+      if (!success) {
+        alert("Copy failed");
+      }
+    } finally {
+      document.body.removeChild(temp);
+    }
+  }
+  copyToClipboard(csvSerialize("\t"));
+  }
 }
+
+

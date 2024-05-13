@@ -83,7 +83,6 @@ export class PopupRelationMenu{
     create(){
         let str = `<div class="relation-field-filter">
             <div class="pop-menu-container">
-                
                 <div class="dropdown actions-button1" 
                 style="display: inline-flex;">
                     <span class="">${this.label||'Relationship Fields'}: </span>
@@ -91,7 +90,7 @@ export class PopupRelationMenu{
                 
                 <div class="pop-menu">
                     <div class="pop-path"><span class="pop-show-name">Name</span><span class="pop-show-label">Label</span><span>Path:</span></div>
-                    <div class="pop-search"><input style="width:100%" name="search" type="text" placeholder="input a key of field name"></input></div>
+                    <div class="pop-search"><input style="width:100%" name="search" type="text" placeholder="input a key of field name" autocomplete="off"></input></div>
                     <div class="pop-item-container" style="max-height:450px;overflow:auto">
                         <span class="relationship"><input type="checkbox"></input>All field metadata</span>
                     </div>
@@ -159,27 +158,10 @@ export class PopupRelationMenu{
         })
 
         $('#'+this.uuid + ' input[name="search"]').on('change', (event)=>{
-            let attr = $(event.currentTarget).val().trim();
-            if (!attr){
-                $('#'+this.uuid + ' .pop-item-container li').show();
-                return;
-            }
-
-            let showwedName = [];
-            for (let item of this.allItems){
-                if (item.name.toLocaleLowerCase().indexOf(attr.toLocaleLowerCase()) != -1 || item.label.toLocaleLowerCase().indexOf(attr.toLocaleLowerCase()) != -1){
-                    showwedName.push(item.name);
-                }
-            }
-            $('#'+this.uuid + ' .pop-item-container li').each((index, ele)=>{
-                let name = $(ele).attr('name');
-                if (showwedName.indexOf(name) != -1){
-                    $(ele).show();
-                }else{
-                    $(ele).hide();
-                }
-            })
-            
+            this.handlerChangeInput(event);
+        })
+        $('#'+this.uuid + ' input[name="search"]').on('keyup', (event)=>{
+            this.handlerChangeInput(event);
         })
 
 
@@ -200,5 +182,28 @@ export class PopupRelationMenu{
             })
         })
         
+    }
+
+    handlerChangeInput(event){
+        let attr = $(event.currentTarget).val().trim();
+        if (!attr){
+            $('#'+this.uuid + ' .pop-item-container li').show();
+            return;
+        }
+
+        let showwedName = [];
+        for (let item of this.allItems){
+            if (item.name.toLocaleLowerCase().indexOf(attr.toLocaleLowerCase()) != -1 || item.label.toLocaleLowerCase().indexOf(attr.toLocaleLowerCase()) != -1){
+                showwedName.push(item.name);
+            }
+        }
+        $('#'+this.uuid + ' .pop-item-container li').each((index, ele)=>{
+            let name = $(ele).attr('name');
+            if (showwedName.indexOf(name) != -1){
+                $(ele).show();
+            }else{
+                $(ele).hide();
+            }
+        })
     }
 }

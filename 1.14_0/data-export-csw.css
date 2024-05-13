@@ -8,6 +8,56 @@
     display:none;
 }
 
+.root-message{
+  text-wrap: nowrap;
+}
+
+.msg-error{
+  background-color: #ce0404;
+    color: #ffffff;
+}
+
+.tab.top-btn{
+  background-color:#cde0cf
+}
+
+#query{
+  height: 5em;
+  margin-top: 3px;
+  font-size: x-large;
+  line-height: 150%;
+  font-family: emoji;
+}
+
+.tab.top-btn.url-processing{
+
+    background: linear-gradient(to right, #fa0606, #9198e5);
+    background-image: radial-gradient(#fa0606, #00ff21);
+    /* background-repeat: no-repeat; */
+    background-size: 50% 100%;
+
+    animation: 0.01 linear 1s k23;
+    animation-iteration-count: infinite;
+    animation-duration: 0.5s;
+    animation-delay: 0.01s;
+    animation-name: k23;
+    animation-timing-function: linear;
+}
+
+@keyframes k23 {
+  0% {background-position: 0% 100%;}
+  10% {background-position: 10% 100%;}
+  20% {background-position: 20% 100%;}
+  30% {background-position: 30% 100%;}
+  40% {background-position: 40% 100%;}
+  50% {background-position: 50% 100%;}
+  60% {background-position: 60% 100%;}
+  70% {background-position: 70% 100%;}
+  80% {background-position: 80% 100%;}
+  90% {background-position: 90% 100%;}
+  100% {background-position: 100% 100%;}
+}
+
 body{
   background-color: black;
   color: white;
@@ -39,6 +89,16 @@ body{
     width:100%;
     background-color:highlight;
 }
+
+.autocompleteitem{
+  color: #000000;
+  width: 100%;
+  background-color: #ffffff;
+  padding-left: 8px;
+  padding-right: 8px;
+  line-height: 1.25rem;
+  font-size: larger;
+}
 #auto{
     height: auto; 
     background-color: #F0F0F0;
@@ -48,6 +108,10 @@ body{
 
 #applog-showallsobjectdatatable .area{
   background-color:inherit
+}
+
+.sub-block{
+  width: 100%;
 }
 
 
@@ -76,6 +140,10 @@ body{
   /* Create an active/current tablink class */
   .tab button.active {
     background-color: #ccc;
+  }
+
+  .tab.url-processing button.active{
+    background-color: inherit;
   }
   
   /* Style the tab content */
@@ -218,7 +286,11 @@ span.relationship{
   margin-left: 5px;
   margin-top: -5px;
   max-height: 500px;
-  overflow: auto;
+  overflow: hidden;
+}
+
+#result-table tr{
+  background-color: white;
 }
 
 tr th{
@@ -1287,4 +1359,18 @@ input:checked + .checkbox-wapper:before {
 textarea.report-condition-input {
   font-size: larger;
   height: 300px;
+}
+
+
+.report-body>.left-panel{
+  position: relative;
+}
+
+#object-field-tree-groupby{
+  position: absolute;
+  right: -500px;
+  top: 0px;
+  z-index: 99;
+  background: black;
+  width: 500px;
 }

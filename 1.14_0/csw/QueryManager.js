@@ -293,15 +293,26 @@ export class QueryMananger{
         })
     }
 
+    
+
+    getSyncDescribeSobject(sobjectName){
+        let v = this.dataMap[sobjectName];
+        if (v && Object.keys(v).length > 0){
+            return this.dataMap[sobjectName].sobjectDescribe;
+        }
+        return {};
+    }
+
     async getDescribeSobject(sobjectName){
-        if (this.dataMap[sobjectName]){
+        let v = this.dataMap[sobjectName];
+        if (v && Object.keys(v).length > 0){
             return this.dataMap[sobjectName].sobjectDescribe;
         }
         let {sobjectDescribe} = await this.describeInfo.describeSobject(this.useToolingApi, sobjectName);
         if(!sobjectDescribe){
             return {}
         }
-        this.dataMap[sobjectDescribe.name] = this.dataMap[sobjectDescribe.name]||{sobjectDescribe:sobjectDescribe, records:[]};
+        this.dataMap[sobjectDescribe.name] = {sobjectDescribe:sobjectDescribe, records:[]};
         return sobjectDescribe;
     }
 
@@ -330,9 +341,9 @@ export class QueryMananger{
         let acQuery = '';
         if (fieldApi){
             acQuery=`select id ${nameFieldDesc?.name?','+nameFieldDesc?.name:''} from ${sobjectName} where ${fieldApi}='${value}'`;
-            acQuery = '/services/data/v56.0/query/?q=' + encodeURIComponent(acQuery);
+            acQuery = this.baseQueryAPI()+'?q=' + encodeURIComponent(acQuery);
         }else{
-            acQuery = "/services/data/v" + apiVersion + "/sobjects/" + sobjectName + "/"+value;
+            acQuery = this.baseSObjectAPI() + sobjectName + "/"+value;
         }
 
         await this.getEntityParticle(sobjectName);
@@ -416,7 +427,7 @@ export class QueryMananger{
 
         this.dataMap[sobjectDescribe.name] = this.dataMap[sobjectDescribe.name]||{sobjectDescribe:sobjectDescribe, records:[]};
 
-        let findCacheData = this.dataMap[sobjectDescribe.name].records.find(e=>{return e.Id == value});
+        let findCacheData = this.dataMap[sobjectDescribe.name]?.records?.find(e=>{return e.Id == value});
         if (findCacheData){
             vm.autocompleteResults = {
                 sobjectName:sobjectDescribe.name,
@@ -444,10 +455,11 @@ export class QueryMananger{
         let acQuery = '';
         if (fieldName){
             acQuery=`select * from ${sobjectDescribe.name} where ${fieldName}='${value}'`;
-            acQuery = '/services/data/v56.0/query/?q=' + encodeURIComponent(acQuery);
+            acQuery = this.baseQueryAPI()+'?q=' + encodeURIComponent(acQuery);
         }else{
-            acQuery = "/services/data/v" + apiVersion + "/sobjects/" + sobjectDescribe.name + "/"+value;
+            acQuery = this.baseSObjectAPI() + sobjectDescribe.name + "/"+value;
         }
+        
 
         await this.getEntityParticle(sobjectDescribe.name);
 
@@ -488,6 +500,9 @@ export class QueryMananger{
     }
 
     async getSObjectById(recordId){
+        if (!recordId || recordId === 0){
+            return {objectTypes:[]}
+        }
         let {globalDescribe} = await this.describeInfo.describeGlobal(this.useToolingApi);
         let objectTypes;
         if (globalDescribe) {
@@ -497,6 +512,11 @@ export class QueryMananger{
           objectTypes = [];
         }
         return {objectTypes, recordId};
+    }
+
+    async getSObjectNameById(recordId){
+        let {objectTypes} = await this.getSObjectById(recordId);
+        return objectTypes[0];
     }
     
 
@@ -573,22 +593,38 @@ export class QueryMananger{
         let conditionStr = '';
         if (condition){
             conditionStr = Object.keys(condition).filter(k=>condition[k]&&allFilteralbleFields.indexOf(k)!=-1).map(k =>{
-                let referToField = sobjectDescribe.fields.find(e=>e.name == k);
-                if (referToField.type=='boolean' || referToField.type=='date' || referToField.type=='datetime'){
-                    return k+"="+condition[k];
+
+                let option = condition[k+'.option'] || '=';
+                if (condition[k] == 'null'){
+                    return k+option+condition[k];
                 }
-                return k+"='"+condition[k]+"'";
+
+                let referToField = sobjectDescribe.fields.find(e=>e.name == k);
+                if (referToField.type=='boolean' || referToField.type=='date' || referToField.type=='datetime' || referToField.type=='double'){
+                    return k+option+condition[k];
+                }
+
+                if (option=='in'){
+                    return k+' '+option+" ('"+condition[k].split(',').join("','")+"') ";
+                }
+                if (option=='not in'){
+                    return ' not ' + k+" in ('"+condition[k].split(',').join("','")+"') ";
+                }
+                return k+option+" '"+condition[k]+"' ";
             }).join(' and ');
             if (conditionStr){
                 conditionStr = ' where ' + conditionStr;
             }
         }
         if (fieldNames){
-            let idFieldDesc = sobjectDescribe.fields.find(e=>e.name=='CreatedDate'||'SystemModstamp'==e.name||'Id'==e.name);
+            let idFieldDesc = sobjectDescribe.fields.find(e=>e.name=='CreatedDate');
+             idFieldDesc = idFieldDesc || sobjectDescribe.fields.find(e=>'SystemModstamp'==e.name);
+             idFieldDesc = idFieldDesc || sobjectDescribe.fields.find(e=>e.name=='Id');
             acQuery=`select ${fieldNames} from ${sobjectDescribe.name} ${conditionStr} ${idFieldDesc.sortable?'order by '+idFieldDesc.name+' desc':''} ${offset==0||offset>2000?'':'limit ' +offset}`;
-            acQuery = '/services/data/v56.0/query/?q=' + encodeURIComponent(acQuery);
+            console.log(acQuery);
+            acQuery = this.baseQueryAPI()+`?q=` + encodeURIComponent(acQuery);
         }else{
-            acQuery = "/services/data/v" + apiVersion + "/sobjects/" + sobjectDescribe.name + "/"+value;
+            acQuery = this.baseSObjectAPI() + sobjectDescribe.name + "/"+value;
         }
 
         await this.getEntityParticle(sobjectDescribe.name);
@@ -634,6 +670,17 @@ export class QueryMananger{
         })
     }
 
+    baseQueryAPI(){
+        return `/services/data/v56.0/${this.useToolingApi?'tooling/':''}query/`
+    }
+    baseSObjectAPI(){
+        return  `/services/data/v56.0/${this.useToolingApi?'tooling/':''}sobjects/`;
+    }
+
+    getNetwork(){
+        return sfConn.getNetwork();
+    }
+
     async loadNextRecords(data, isLoadAll){
         if (data.done == true){
             data.allRecords = data.records; 
@@ -651,7 +698,7 @@ export class QueryMananger{
     async getRecordsBySoql(soql){
         let acQuery = soql;
         if (soql){
-            acQuery = '/services/data/v56.0/query/?q=' + encodeURIComponent(soql);
+            acQuery = this.baseQueryAPI()+'?q=' + encodeURIComponent(soql);
         }
         let vm = this;
         return await new Promise((resolved)=>{

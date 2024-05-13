@@ -7,8 +7,20 @@ export class MetadateTree{
        this.metadataDetails = {};
        this.fileContents = {};
        this.currentXmlName = '';
+       this.init = false;
    }
-   createHead(){
+   active(){
+    if (this.init){
+        return;
+    }
+    this.init =  true;
+    this.createHead(this.rootId);
+   }
+   createHead(rootId){
+    this.rootId = rootId;
+    if (!this.init ){
+        return;
+    }
        let treeroot = document.getElementById('metadatainfo');
        let searchAear = `
        <div class="searchresult">

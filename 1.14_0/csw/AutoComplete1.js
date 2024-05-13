@@ -3,7 +3,8 @@
 export class AutoComplete1{
     constructor(inputElementId,autoArray){
         this.inputElementId=inputElementId;
-        this.autoElementId="auto_997_"+this.inputElementId;
+        this.selector = inputElementId;
+        this.autoElementId="auto_997_"+this.inputElementId.replace(/\W*/mg,'');
         this.autoObj = this.createAutoObj();//DIV的根节点
         this.value_arr=autoArray;        //不要包含重复值
         this.index=-1;          //当前选中的DIV的索引
@@ -15,7 +16,11 @@ export class AutoComplete1{
         }
     }
     get obj(){
-        return document.getElementById(this.inputElementId);
+        let  objFromId = document.getElementById(this.inputElementId);
+        if (objFromId){
+            return objFromId;
+        }
+        return this.currentFocus;
     }
 
     setItemProvider(provider){
@@ -57,6 +62,7 @@ export class AutoComplete1{
         this.autoObj.style.maxHeight= "400px";//减去边框的长度2px
         this.autoObj.style.fontSize= '14';
         this.autoObj.style.position= 'fixed';
+        this.autoObj.style.backgroundColor='white';
 
 
     }
@@ -69,7 +75,7 @@ export class AutoComplete1{
     }
 
     setValue(target){
-        this.updateObjectValue(target.seq);
+        this.updateObjectValue(target.seq || $(target).attr('seq')||'default');
         this.autoObj.className="auto_hidden";
         $(this.obj).change();
     }
@@ -86,7 +92,8 @@ export class AutoComplete1{
             rightChar++;
         }
         let word = this.search_value.substring(0, cursorPos).match(/[a-zA-Z0-9_]*$/)[0];
-        this.obj.value = this.search_value.substring(0, leftChar+1)+newText+this.search_value.substring(rightChar);
+        //this.obj.value = this.search_value.substring(0, leftChar+1)+newText+this.search_value.substring(rightChar);
+        this.obj.value = newText;
     }
 
     autoOnmouseover(target, _div_index){
@@ -193,8 +200,9 @@ export class AutoComplete1{
                 let val = this.itemProvider.value(matchItems[i]);
                 var div = document.createElement("div");
                 div.className="auto_onmouseout autocompleteitem";
-                div.seq=val;
                 div.title=val;
+                div.seq = val;
+                div.setAttribute('seq',val);
                 div.innerHTML=this.itemProvider.label(matchItems[i], val.replace(reg,"<strong>$1</strong>"));//搜索到的字符粗体显示
                 this.autoObj.appendChild(div);
                 this.autoObj.className="auto_show";
@@ -213,7 +221,12 @@ export class AutoComplete1{
     bindAutoCompleteItemEvent(){
         $('#'+this.autoElementId).on('click','.autocompleteitem', (e)=>{
             console.log('click seq = ', e.target.seq);
-            this.setValue(e.target);
+            let autoitem = e.target;
+            if (!$(e.target).is('.autocompleteitem')){
+                autoitem = $(e.target).parents('.autocompleteitem');
+            }
+            this.setValue(autoitem);
+            this.hideAutoComplete();
         })
 
         $('#'+this.autoElementId).on('mοuseοver', '.autocompleteitem',(e)=>{
@@ -223,23 +236,54 @@ export class AutoComplete1{
     }
 
     createApi(){
-        $('body').on('blur', '#'+this.inputElementId, ()=>{//点击下拉选项得到获取值
+        this.bindAutoCompleteItemEvent();
+        $('body').on('blur', '#'+this.inputElementId, (event)=>{//点击下拉选项得到获取值
             //alert("auto_hidden");//点击获取选择的值。
-            this.autoObj.className="auto_hidden";
-            this.index=-1;
+            setTimeout(()=>{
+                this.hideAutoComplete();
+            }, 100);
         });
 
 
         $('body').on('keyup','#'+this.inputElementId, (e)=>{
-            this.start(e)
+            this.start(e);
         })
 
+        this.start(this);
+    }
+
+    createApi2(){
         this.bindAutoCompleteItemEvent();
+        $('body').on('blur', this.selector, (event)=>{//点击下拉选项得到获取值
+            //alert("auto_hidden");//点击获取选择的值。
+            setTimeout(()=>{
+                this.hideAutoComplete();
+            }, 100);
+        });
+
+
+        $('body').on('keyup',this.selector, (e)=>{
+            this.start(e);
+        })
+
+
+        $('body').on('focus',this.selector, (e)=>{
+            if ($(e.currentTarget).is(this.selector)){
+                this.currentFocus = e.currentTarget;
+            }
+        })
+
+        this.start(this);
     }
 
     bind(object, fun){
         return function() {
             return fun.apply(object, arguments);
         }
+    }
+
+    hideAutoComplete(){
+        this.autoObj.className="auto_hidden";
+        this.index=-1;
     }
 }

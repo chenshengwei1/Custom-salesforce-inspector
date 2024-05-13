@@ -17,8 +17,6 @@ $(document).ready(function(){
         return [];
     });
     autoComplete1.createApi();
-    autoComplete1.start(AutoComplete1);
-
 });
 
 

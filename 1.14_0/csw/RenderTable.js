@@ -10,20 +10,35 @@ export class RenderTable{
         this.id = Tools.getUuid();
         this.sortField={};
         this.description = '';
+        this.container = container;
         $(container).append(`<table id="${this.id}" class="table"><thead><tr  class="row"><th>Loading table datas</th></thead></tr></table>`);
         this.sortable = false;
+        this.showingMore = false;
     }
 
     update(){
         $('#'+this.id).html(this.create());
+        if (!this.dataList.length){
+            $(this.container).addClass('record-empty');
+        }
+    }
+
+    displayShowMore(){
+        return this.dataList.length > 100 && this.showingMore == false;
+    }
+
+    showMore(){
+        this.showingMore = true;
     }
 
     create(){
         if (!this.dataList.length){
             return `<div>${this.description}</div><div>No Data</div>`;
         }
+
+        let theDataToShowList = this.displayShowMore()?this.dataList.slice(0, Math.min(100, this.dataList.length)):this.dataList;
         return `<thead>
-                    <tr  class="row header"><th class="cell" colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}</th></tr>
+                    <tr  class="row header"><th class="cell" colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}(${this.dataList.length})${this.displayShowMore()?'<button class="show_more">Show More</button>':''}</th></tr>
                     <tr  class="row blue">
                         ${this.fields.concat(this.showRelatedFields).map(e=>{
                             return `<th class="cell field-${e.label}" tabindex="0">${e.label}
@@ -37,7 +52,7 @@ export class RenderTable{
                     </tr>
                 </thead>
                 <tbody>
-                    ${this.dataList.map(r=>{
+                    ${theDataToShowList.map(r=>{
                         return `
                 <tr class="row ${r.Name}" title="${r.Id}">
 

@@ -85,7 +85,10 @@ export class SObjectTable extends Notifiable{
         }
 
         if (value === undefined || value === null){
-            return '';
+            return '<span style="color: #aaa; font-style: italic;">(Unknown)</span>';
+        }
+        if (value === ''){
+            return '<span style="color: #aaa; font-style: italic;">(Blank)</span>';
         }
         if (typeof value ==='string'){
             return value;
@@ -176,7 +179,7 @@ export class SObjectTable extends Notifiable{
                 ${this.fieldColumns.map(e=>{
                     return `<td class="cell field-${e.name}" tabindex="0">${this.rowtostring(r[e.name], e.name)}</td>`
                 }).join('')}
-                    <td class="field-value cell" tabindex="0">${this.record[r.name]||''}</td>
+                    <td class="field-value cell" tabindex="0">${this.rowtostring(this.record[r.name], r.name)}</td>
                     <td class="field-actions cell">
                         <div class="pop-menu-container">
                             <button class="actions-button">
@@ -349,7 +352,7 @@ export class SObjectTable extends Notifiable{
         <p>
 
             <div>
-                <label for="cars">Object Search: </label>
+                <label for="cars">Object Or ID Search: </label>
                 <input id="objectdetailsearch" class="search feedback-input" type="input" value="Order" name="apiName" type="text" autocomplete="off"
                 style="width:395px;height:30px;font-size:15pt;"></input>
                 <button class="tablinks comp-btn" name="updateSelectObject" id="refreshSelectObject">Refersh</button>
@@ -417,13 +420,22 @@ export class SObjectTable extends Notifiable{
             })
         })
 
-        $('#refreshSelectObject').on('click', ()=>{
+        $('#refreshSelectObject').on('click', async()=>{
             let opt = $('#objectdetailsearch').val();
             let selectedObjectAPI = this.tree.allSObjectApi.find(e=>{
                 return e.global.name.toLowerCase() == opt.toLowerCase();
             })
             if (!selectedObjectAPI){
+                let objName = await this.searchId(opt);
+                if (objName){
+                    this.recordId = opt;
+                    opt = objName;
+                    selectedObjectAPI = this.tree.allSObjectApi.find(e=>{
+                        return e.global.name.toLowerCase() == opt.toLowerCase();
+                    })
+                }else{
                 return;
+                }
             }
             this.sobject = selectedObjectAPI.global.name;
             $('#select-sobject').val(this.sobject);
@@ -431,7 +443,7 @@ export class SObjectTable extends Notifiable{
 
             this.tree.getDescribeSobject(opt).then(e=>{
                 this.sobject = e.name;
-                this.doUpdaate();
+                this.doUpdaate(this.recordId);
                 $('.sobjectAPIName').text(this.sobject);
                 $('.sobjectName').text(this.sobjectDescribe.name);
                 $('#select-sobject').removeAttr('disabled');
@@ -468,7 +480,6 @@ export class SObjectTable extends Notifiable{
             return this.tree.allSObjectApi.map(e=>{return e.global.name});
         });
         autoComplete1.createApi();
-        autoComplete1.start(AutoComplete1);
 
         let autoComplete2 = new AutoComplete1('objectdetailsearch2',()=>{
             return this.tree.allSObjectApi.map(e=>{return e.global});
@@ -502,9 +513,23 @@ export class SObjectTable extends Notifiable{
             }
         })
         autoComplete2.createApi();
-        autoComplete2.start(autoComplete2);
     }
 
+    async searchId(recordId){
+        try{
+            let {objectTypes} = await this.tree.getSObjectById(recordId);
+            this.objectTypes = objectTypes;
+            if (this.objectTypes.length > 0){
+                let sobjectname = this.objectTypes[0];
+                let data = await this.tree.getData(sobjectname, recordId);
+                return sobjectname;
+            }else{
+                this.sobjectDescribe = {};
+            }
+        }catch(e){
+        }
+        return null;
+    }
     updateSObjectSelect (){
         let selctonj = document.getElementById('select-sobject');
         console.log('updateSObjectSelect ', this.tree.allSObjectApi);

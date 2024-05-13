@@ -93,7 +93,7 @@ export class ShowOrderTable{
     }
 
     addRelationFieldFilter(container, sobjectname){
-        new PopupRelationMenu({container,
+       return new PopupRelationMenu({container,
             open:()=>{
                 let sobjectDescribe = this.sobjectDescribes[sobjectname];
                 let disabledItems = sobjectDescribe.fields.filter(e=>{
@@ -137,13 +137,13 @@ export class ShowOrderTable{
         let searchAear = `
         <p>
             Object Search:
-            <input class="search feedback-input" id="ordersearch" type="input" value="Order" autocomplete="off" style="width:80%"></input>
+            <input class="search feedback-input no-border" readonly id="ordersearch" type="input" value="Order" autocomplete="off" style="width:80%"></input>
             <button class="tablinks comp-btn" name="updateSelectObject" id="showOrderSearch">Refersh</button>
         </p>
         <p>
-            ID: <input class="search feedback-input" id="orderIdInput" type="input" value=""></input>
-            Order Number: <input class="search feedback-input" id="ordernumberInput" type="input" value=""></input>
-            Order Name: <input class="search feedback-input" id="ordernameInput" type="input" value=""></input>
+            ID / Ordderr Number/Order Number: <input class="search feedback-input" id="orderIdInput" type="input" value=""></input>
+            <input class="search feedback-input hide" id="ordernumberInput" type="input" value=""></input>
+            <input class="search feedback-input hide" id="ordernameInput" type="input" value=""></input>
         </p>
         <div class="showordersearchresult">
             <div class="totalbar"><span>Total Records : </span><span class="recordsnumber">0</span></div>
@@ -167,15 +167,39 @@ export class ShowOrderTable{
 
         $('#showOrderSearch').on('click', async ()=> {
             let sobjectname = $('#ordersearch').val();
-            let id = $('#orderIdInput').val();
-            let ordernumber = $('#ordernumberInput').val();
-            let ordername = $('#ordernameInput').val();
+            let id = $('#orderIdInput').val().trim();
+            let ordernumber = $('#ordernumberInput').val().trim();
+            let ordername = $('#ordernameInput').val().trim();
+            if (id){
+                if (/^\d{8}|$\d{10}/.test(id)){
+                    ordernumber = id;
+                    id='';
+                }else if (/^\w{4}\d{8}$/ig.test(id)){
+                    ordername = id;
+                    id='';
+                }else if (!/^[\w\d]{15,18}$/.test(id)){
+                    alert('invalid input');
+                    return;
+                }
+            }else {
+                if (!(ordernumber || ordername)){
+                    alert('invalid input');
+                    return;
+                }
+            }
+            
             if (ordernumber || ordername){
                 $('#ordersearch').val('Order');
                 sobjectname = 'Order';
             }
+            else{
+                ordernumber='';
+                ordername='';
+                sobjectname = await  this.tree.getSObjectNameById(id);
+                $('#ordersearch').val(sobjectname);
+            }
             await this.setSObjectName(sobjectname);
-            this.update(id, ordernumber, ordername);
+            this.updateMainObj(id, ordernumber, ordername);
         })
 
         $('.showordersearchresult').on('click','.sobject-link',(event)=>{
@@ -189,16 +213,25 @@ export class ShowOrderTable{
             return this.tree.allSObjectApi.map(e=>{return e.global.name});
         });
         autoComplete1.createApi();
-        autoComplete1.start(AutoComplete1);
     }
 
-    async update(id, ordernumber, ordername){
+    async updateObjectById(recordId){
+        let {objectTypes} = await this.tree.getSObjectNameById(recordId);
+        
+        return objectTypes[0];
+    }
+
+    async targetObject(recordId){
+        return await this.updateObjectById(recordId);
+    }
+
+    async updateMainObj(id, ordernumber, ordername){
 
         if (this.sobjectName && (id || (this.sobjectName=='Order' && (ordernumber|| ordername)))){
             for(let t of this.relationshipTable){
                 $('#'+t.id).remove();
             }
-            $('[id].field-check').each((i, j)=>{
+            $('.showordersearchresult [id].field-check').each((i, j)=>{
                 $(j).remove();
             })
             this.records = [];
@@ -215,7 +248,7 @@ export class ShowOrderTable{
             })
 
             this.mainTable.fields = showFields.map(e=>{
-                return {label:e.label, property:e.name};
+                return {label:e.label, property:e.name, isLink:!!e.relationshipName, target:e.referenceTo.length == 1?e.referenceTo[0]+'.Id':'what.Id'};
             });
 
             let input = {Id:id};
@@ -251,38 +284,129 @@ export class ShowOrderTable{
                 return;
             }
 
-            let relatinoshipRows = sobjectDescribe.childRelationships.filter(e=>{
-                return checkFields.indexOf(sobjectDescribe.name+'.'+e.childSObject+'.'+e.field)>-1;
-            }).map(t=>{
-                let {childSObject,field, relationshipName}=t;
-                return {childSObject,field, relationshipName};
-            })
-            if (this.mainTable.dataList.length==0){
-                return
-            }
-
-            for (let relatinoship of relatinoshipRows){
-                await this.createRenderTable(relatinoship.childSObject, relatinoship.field, id);
-            }
+            await this.createReferencedTables(sobjectDescribe, id, this.mainTable.dataList[0]);
         }
     }
 
-    async createRenderTable(sobject, field, value){
-        //this.addFieldFilter($('#showorderrealtionshiptable'), sobject);
-        this.addRelationFieldFilter($('#showorderrealtionshiptable'), sobject)
+    async createReferencedTables(sobjectDescribe, id, sobjectRecord){
+        let pronityMap = {
+            Order:['vlocity_cmt__SupersededOrder__r','OrderItems','Com_Order_Item_Details__r','vlocity_cmt__OrderPriceAdjustments__r','Com_Order_Payments__r']
+        }
 
-        let rTable = new RenderTable($('#showorderrealtionshiptable'));
+        let allChecked = this.tree.getAllChecked();
+        let checkFields = Object.keys(allChecked).filter(element => {
+            return element.indexOf(sobjectDescribe.name+'.')==0&&allChecked[element];
+        });
+
+        let relatinoshipRows = sobjectDescribe.childRelationships.filter(e=>{
+            return checkFields.indexOf(sobjectDescribe.name+'.'+e.childSObject+'.'+e.field)>-1;
+        }).map(t=>{
+            let {childSObject,field, relationshipName}=t;
+            return {childSObject,field, relationshipName};
+        }).sort((a, b)=>{
+            if (pronityMap[sobjectDescribe.name]){
+                let arry = pronityMap[sobjectDescribe.name];
+                let aIndex = arry.indexOf(a.relationshipName) == -1?1000:arry.indexOf(a.relationshipName);
+                let bIndex = arry.indexOf(b.relationshipName) == -1?1000:arry.indexOf(b.relationshipName);
+                return aIndex - bIndex;
+            }
+            return 0;
+        })
+        if (!sobjectRecord){
+            let clickObject = '';
+            let result = await this.tree.getSObjectById(id);
+            for (let objectType of result.objectTypes){
+                clickObject = objectType;
+                break;
+            }
+            return
+        }
+
+        /**
+         * other reference
+         */
+        let relatinoshipRows2 = [];
+        if (sobjectDescribe.name == 'Com_Change_Request__c'){
+            let whatId = sobjectRecord.What_Id__c;
+            if (whatId){
+                let clickObject = '';
+                let result = await this.tree.getSObjectById(whatId);
+                for (let objectType of result.objectTypes){
+                    clickObject = objectType;
+                    break;
+                }
+                if (clickObject){
+                    relatinoshipRows2.push({childSObject:clickObject, field:'Id', value:whatId});
+                }
+            }
+        }
+
+        for (let relatinoship of relatinoshipRows2){
+            await this.createRenderTable(relatinoship.childSObject, relatinoship.field, relatinoship.value);
+        }
+        for (let relatinoship of relatinoshipRows){
+            await this.createRenderTable(relatinoship.childSObject, relatinoship.field, id);
+        }
+    }
+
+    async createRelatedByValue(whatId){
+        if (!whatId){
+            return null;
+        }
+        let whatObject = await this.targetObject(whatId);
+        return whatObject;
+    }
+
+    createSubBlock(parentDiv){
+        let subId = Tools.getUuid();
+
+        let subs = $(parentDiv).children(':not(.record-empty):last');
+        if (subs.length == 0){
+            let sub1s = $(parentDiv).children('.record-empty:first');
+            if (sub1s.length == 0){
+                $(parentDiv).append(`<div id="${subId}" class="sub-block"></div>`);
+            }else{
+                sub1s.before(`<div id="${subId}" class="sub-block"></div>`);
+            }
+        }else{
+            subs.after(`<div id="${subId}" class="sub-block"></div>`);
+        }
+
+
+        return subId;
+    }
+
+    async createRenderTable(sobject, field, value, includeReference){
+
+        for(let record of this.records){
+            if (record[field] == value && value){
+                //return;
+            }
+        }
+
+        //this.addFieldFilter($('#showorderrealtionshiptable'), sobject);
+        let childId = this.createSubBlock($('#showorderrealtionshiptable'));
+        let fieldFilterUI = this.addRelationFieldFilter($('#'+childId), sobject);
+
+        let rTable = new RenderTable($('#'+childId));
         this.relationshipTable.push(rTable);
         rTable.description = `<h1>${sobject} - ${field}</h1>`;
         let q = {};
         q[field] = value;
         rTable.query = q;
         rTable.sobject = sobject;
+        rTable.fieldFilterUI = fieldFilterUI.uuid;
 
         let sobjectDescribe = await this.tree.getDescribeSobject(sobject);
         this.sobjectDescribes[sobject] = sobjectDescribe;
 
         await this.doUpdaateTable(rTable);
+
+        if (includeReference){
+            if (rTable.dataList && rTable.dataList.length==1){
+                await this.createReferencedTables(sobjectDescribe, rTable.dataList[0].Id, rTable.dataList[0]);
+            }
+        }
     }
 
     async doUpdaateTable(rTable){
@@ -319,40 +443,45 @@ export class ShowOrderTable{
 
         let result = await this.tree.getRecordsByFields(subsobjectDescribe.name, showFields, 0, rTable.query, selected);
         rTable.dataList = result.results ||[];
+
+        this.records.push(...rTable.dataList);
+
+        if (rTable.dataList?.length  && rTable.dataList[0].CreatedDate){
+            rTable.dataList = rTable.dataList.sort((a, b)=>{
+                return a.CreatedDate.localeCompare(b.CreatedDate);
+            })
+        }
+        if (rTable.fieldFilterUI  && rTable.dataList?.length==0){
+            
+            $('#'+rTable.fieldFilterUI).hide();
+        }
         rTable.update();
     }
 
     async linkToTarget(target, targetId, originalField){
-        let originalSObject = target.split('.')[0];
         let clickId = targetId;
-        let clickObject = '';
         
         let rt = this.relationshipTable.find(e=>{
             return e.sobjectId == clickId;
         })
-        if (rt){
+        if (rt && targetId){
+            await this.createRenderTable(target.split('.')[0], 'Id', clickId, true);
             return;
-        }
-
-        let prentObjectDescribe = await this.tree.getDescribeSobject(originalSObject);
-        let origFieldObj = prentObjectDescribe.fields.find(e => e.name == originalField);
-        if (!origFieldObj){
-            return
-        }
-
-        if (origFieldObj.referenceTo.length>1){
+        }else if (targetId){
+            let clickObject = '';
             let result = await this.tree.getSObjectById(targetId);
             for (let objectType of result.objectTypes){
-                if(origFieldObj.referenceTo.indexOf(objectType) > 0){
-                    clickObject = objectType;
-                    break;
-                }
+                clickObject = objectType;
+                break;
             }
-        }else {
-            clickObject = origFieldObj.referenceTo[0];
+    
+            if (clickObject){
+                await this.createRenderTable(clickObject, 'Id', clickId, true);
+            }else{
+                alert('unknow object id: '+targetId);
+            }
         }
 
-        await this.createRenderTable(clickObject, 'Id', clickId);
     }
 
 }

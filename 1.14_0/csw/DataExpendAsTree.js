@@ -13,6 +13,14 @@ export class DataExpendAsTree extends Notifiable{
     constructor(dateTree){
         super();
         this.tree = dateTree;
+        this.isActived = false;
+    }
+    active(){
+        if (this.isActived){
+            return;
+        }
+        this.isActived =  true;
+        this.createHead(this.rootId);
     }
 
     init(sobjectDescribe, data){
@@ -37,7 +45,7 @@ export class DataExpendAsTree extends Notifiable{
         }
 
         let listData = sobjectDescribe.fields.map(e=>{
-            return {name:e.name,label:e.label, value:data[e.name],type:e.type, referenceTo:e.referenceTo}
+            return {name:e.name,label:e.label, value:data[e.name],type:e.type, referenceTo:e.referenceTo||[]}
         }).sort((a, b)=>{
             return a.name.localeCompare(b.name)
         })
@@ -46,16 +54,16 @@ export class DataExpendAsTree extends Notifiable{
                 if (field.type=="reference"){
                     let uuid = this.getUuid();
                     field.uuid = uuid;
-                    return `<div class="field-item ${field.value?'':'null-value'} ${field.name=='Id'?'requirment-item':''}" name="${sobjectDescribe.name+'.'+field.name}">
+                    return `<div class="field-item ${field.value?'':'null-value'} ${field.name=='Id'?'requirment-item':''}" field-name="${field.name}" field-label="${field.label}" name="${sobjectDescribe.name+'.'+field.name}">
                         <span class="field-item-name"> ${field.name}</span>
-                        <span class="field-item-label">(${field.label})</span>:
-                        <span class="reference field-item-value" name="${sobjectDescribe.name+'.'+field.name}" value="${field.value}">${field.value}</span>
-                        <div class="childblock" id="${uuid}">${this.getChildHtml(sobjectDescribe, field)}</div>
+                        <span class="field-item-label">${field.label}</span>:
+                        <span class="reference field-item-value" name="${sobjectDescribe.name+'.'+field.name}" value="${field.value}">${field.value || '&lt;empty&gt;'}</span>
+                        <div class="childblock sobject" id="${uuid}" data-sobjectname="${field.referenceTo.join(',')}" data-value="${field.value}"></div>
                     </div>`
                 }
-                return `<div class="field-item ${field.value?'':'null-value'}" name="${sobjectDescribe.name+'.'+field.name}">
+                return `<div class="field-item ${field.value?'':'null-value'}" name="${sobjectDescribe.name+'.'+field.name}" field-name="${field.name}" field-label="${field.label}">
                     <span class="field-item-name">${field.name}</span>
-                    <span class="field-item-label">(${field.label})</span>:
+                    <span class="field-item-label">${field.label}</span>:
                     <span class="field-item-value">${field.value}</span>
                     </div>`
             }).join('')}
@@ -64,15 +72,18 @@ export class DataExpendAsTree extends Notifiable{
                 let uuid = this.getUuid();
                 field.uuid = uuid;
                 return `<div class="field-item" name="${sobjectDescribe.name+'.'+field.childSObject+'.'+field.field}">
-                    <span class="field-item-name ${this.isQueryable(field.childSObject)?'queryable':''}">${field.childSObject}</span>:
+                    <span class="field-item-name ${this.isQueryable(field.childSObject)?'queryable':''}">${field.childSObject}</span>
+                    <span class="field-item-label ${this.isQueryable(field.childSObject)?'queryable':''}">${field.relationshipName}</span>:
                     <span class="relationship field-item-attr" name="${field.childSObject+'.'+field.field}" value="${field.field}">
                 ${field.field}</span>
                     <span class="relationshipname field-item-value">(${field.relationshipName||'Blank'})</span>
-                <div class="childblock" id="${uuid}"></div>
+                    <div class="childblock" id="${uuid}" data-reference="${data.Id}" data-sobjectname="${field.childSObject}"></div>
                 </div>`
             }).join('')}
         </div>`
     }
+
+    
 
     isQueryable(sobject){
 
@@ -93,7 +104,7 @@ export class DataExpendAsTree extends Notifiable{
                     <span class="reference" name="${sobjectDescribe.name+'.'+field.name}" value="${field.value.Id}">
                         ${field.value[nameFieldDesc.name]}-${field.value.Id}
                     </span>
-                    <div class="childblock" id="${uuid}"></div>
+                    <div class="childblock" id="${uuid}" data-value="${field.value.Id}" data-sobjectname="${sobjectDescribe.name}"></div>
                 </div>`
 
         }).join('')}`
@@ -107,6 +118,12 @@ export class DataExpendAsTree extends Notifiable{
         let allChecked = this.tree.getAllChecked();
         $(`#${htmlId} .field-item[name]`).hide();
         $(`#${htmlId} .requirment-item`).show();
+        //let sobjDesc = this.tree.getSyncDescribeSobject(this.sobjectDescribe.name);
+
+        let nameFieldName = this.tree.getNameField(this.sobjectDescribe.name).name;
+        $(`#${htmlId} [name="${this.sobjectDescribe.name+'.'}Id"]`).show();
+
+        $(`#${htmlId} [name="${this.sobjectDescribe.name+'.'+nameFieldName}"]`).show();
         Object.keys(allChecked).forEach(element => {
             if (element.indexOf(this.sobjectDescribe.name+'.')==0&&allChecked[element]){
                 $(`#${htmlId} [name="${element}"]`).show();
@@ -117,6 +134,7 @@ export class DataExpendAsTree extends Notifiable{
     showAll(htmlId){
         $(`#${htmlId} .field-item`).show();
     }
+    
 
     hideAll(htmlId){
         $(`#${htmlId} .field-item`).hide();
@@ -129,17 +147,41 @@ export class DataExpendAsTree extends Notifiable{
         });;
     }
 
+    showNameOnly(panelId){
+        $('#'+panelId+' .field-item-name').show();
+        $('#'+panelId+' .field-item-label').hide();
+    }
+
+    showLabelOnly(panelId){
+        $('#'+panelId+' .field-item-name').hide();
+        $('#'+panelId+' .field-item-label').show();
+    }
+
     checkShowAll(){
         let showAll = $('#showAllFields').is(':checked');
         if (showAll){
-            this.showAll('rootdata');
+            this.showAll('objsearchresult');
         }else{
-            this.hideAll('rootdata');
+            this.hideAll('objsearchresult');
         }
     }
 
-    createHead(){
-        let treeroot = document.getElementById('treeinfo');
+    checkNameLabelShow(htmlId){
+        let showAll = $('#showNameOnly').is(':checked');
+        if (showAll){
+            this.showNameOnly(htmlId || 'objsearchresult');
+        }else{
+            this.showLabelOnly(htmlId || 'objsearchresult');
+        }
+    }
+    
+
+    createHead(rootId){
+        this.rootId = rootId;
+        if (!this.isActived ){
+            return;
+        }
+        let treeroot = document.getElementById(rootId);
         let searchAear = `
             <p class="hide">
                 <label>SF Host</label>
@@ -163,6 +205,7 @@ export class DataExpendAsTree extends Notifiable{
             Custom: <input class="" checked id="incustomsearch" type="checkbox" value="Y" ></input>
             No Null Field: <input class="" checked id="noNullField" type="checkbox" value="Y" ></input><br/>
             Show All: <input class="" id="showAllFields" type="checkbox" value="Y" ></input>
+            Show Name Only: <input class="" id="showNameOnly" type="checkbox" value="Y" ></input>
         </p>
         <p>
             Fields Search: <input class="search hide" id="fieldssearch" type="input" value="" autocomplete="off"></input>
@@ -196,6 +239,39 @@ export class DataExpendAsTree extends Notifiable{
         this.addTreeListening();
     }
 
+    async parser(id, ordernumber, ordername){
+        let sobjectname = 'Order';
+        if (id){
+            if (/^\d{8}$/.test(id)){
+                ordernumber = id;
+                id='';
+            }else if (/^\w{4}\d{8}$/ig.test(id)){
+                ordername = id;
+                id='';
+            }else if (!/^[\w\d]{15,18}$/.test(id)){
+                alert('invalid input');
+                return;
+            }
+        }else {
+            if (!(ordernumber || ordername)){
+                alert('invalid input');
+                return;
+            }
+        }
+        
+        if (ordernumber || ordername){
+            $('#objectsearch').val('Order');
+            sobjectname = 'Order';
+        }
+        else{
+            ordernumber='';
+            ordername='';
+            sobjectname = await this.tree.getSObjectNameById(id);
+            $('#ordersearch').val(sobjectname);
+        }
+        return {sobjectname, id}
+    }
+
     addTreeListening(){
 
         let sfHosts = this.tree.sfConn.getSfHosts();
@@ -213,18 +289,15 @@ export class DataExpendAsTree extends Notifiable{
       autoComplete1.createApi();
 
       $('#treeroot').addClass('ctrl-null');
-      $('#objectsearch').val(this.sobjectName);
-      $('#fieldvalyuesearch').val(this.recordId);
 
-      $('#SearchSObject').on('click',()=>{
-          let sobjectname = $('#objectsearch').val().trim();
-          let field = $('#fieldssearch').val();
-          let fieldvalue = $('#fieldvalyuesearch').val().trim();
+      $('#SearchSObject').on('click',async ()=>{
+          let id = $('#fieldvalyuesearch').val().trim();
           let ordername = $('#ordernamesearch').val().trim();
           let ordernumber = $('#ordernumbersearch').val().trim();
+          let {sobjectname} = await this.parser(id, ordernumber, ordername);
           
-          if (fieldvalue){
-              this.doUpdate(sobjectname, fieldvalue);
+          if (id){
+              this.doUpdate(sobjectname, id);
           }else if ((ordername||ordernumber) && 'order' == sobjectname.toLocaleLowerCase()){
             this.tree.getRecordsByFields(sobjectname, [{name:'id'},{name:'name'},{name:'ordernumber'}], 0, {name:ordername,ordernumber:ordernumber}).then((result)=>{
                 if (result?.results?.records?.length){
@@ -252,11 +325,23 @@ export class DataExpendAsTree extends Notifiable{
       $('#showAllFields').on('click', ()=>{
           let showAll = $('#showAllFields').is(':checked');
           if (showAll){
-            this.showAll('rootdata');
+            this.showAll('objsearchresult');
           }else{
-            this.hideAll('rootdata');
+            this.hideAll('objsearchresult');
           }
       })
+
+      $('#showNameOnly').on('click', ()=>{
+        let showName = $('#showNameOnly').is(':checked');
+        if (showName){
+          this.showNameOnly('objsearchresult');
+        }else{
+          this.showLabelOnly('objsearchresult');
+        }
+    })
+
+
+      
 
       $('#useToolingAPICheck').on('click', ()=>{
           let tool = $('#useToolingAPICheck').is(':checked');
@@ -275,16 +360,56 @@ export class DataExpendAsTree extends Notifiable{
       })
 
 
-      setInterval(()=>{
-          let notificationmessage = document.getElementById('notificationmessage');
-          if (notificationmessage){
-              notificationmessage.innerHTML=(this.tree.autocompleteResults||{}).title;
-          }
-          $('.root-message').text(this.tree?.sfConn?.message);
-      }, 500);
+        $('#objsearchresult').on('click','.reference', (event)=>{
+            let fieldPath = $(event.target).attr('name');
+            let fieldPaths = fieldPath.split('.');
+            let field = this.tree.dataMap[fieldPaths[0]].sobjectDescribe.fields.find(e=>{
+                return e.name==fieldPaths[1];
+            })
+
+            let refBlockId = $(event.target).parent().children('.childblock').attr('id');
+            if (!field){
+                let reference = $(event.target).parent().children('.childblock').attr('data-sobjectname')
+                field = {referenceTo:[reference]};
+            }
+            if ($('#'+refBlockId).css("display")=='none' || !$('#'+refBlockId).is('.loaded')){
+                $('#'+refBlockId).show();
+                if ($('#'+refBlockId).is('.loaded')){
+                    return;
+                }
+                this.doUpdate(field.referenceTo[0], $(event.target).attr('value'), refBlockId);
+            }else{
+                $('#'+refBlockId).hide();
+            }
+        })
+
+
+
+        $('#objsearchresult').on('click','.relationship',(event)=>{
+            let fieldPath = $(event.target).attr('name');
+            let fieldPaths = fieldPath.split('.');
+
+            let refBlockId = $(event.target).parent().children('.childblock').attr('id');
+            let id = $(event.target).parent().children('.childblock').attr('data-reference');
+            if ($('#'+refBlockId).css("display")=='none' || !$('#'+refBlockId).is('.loaded')){
+                $('#'+refBlockId).show();
+                if ($('#'+refBlockId).is('.loaded')){
+                    return;
+                }
+                this.doUpdateRelationship(fieldPaths[0],fieldPaths[1], id, refBlockId);
+            }else{
+                $('#'+refBlockId).hide();
+            }
+        })
+
+
+      
     }
 
     doUpdate(sobject, id, htmlId){
+        if (!id){
+            return;
+        }
         $('#SearchSObject').attr('disabled','');
         htmlId = htmlId || 'objsearchresult';
         let rootdata = document.getElementById(htmlId);
@@ -316,49 +441,16 @@ export class DataExpendAsTree extends Notifiable{
 
             this.applyFieldsCheck(htmlId);
             this.checkShowAll();
+            this.checkNameLabelShow(htmlId);
+            
 
             $(rootdata).addClass('loaded');
             let e1 = new Event('loaded');
             e1.data = {recordId:id, sobject: e.sobjectDescribe.name}
             this.notify('update', e1);
             //this.updateSObjectSelect();
-            this.doUpdateHead();
+            //this.doUpdateHead();
             $('#SearchSObject').removeAttr('disabled');
-
-            $('#'+htmlId+' .reference').on('click',(event)=>{
-                let fieldPath = $(event.target).attr('name');
-                let fieldPaths = fieldPath.split('.');
-                let field = this.tree.dataMap[fieldPaths[0]].sobjectDescribe.fields.find(e=>{
-                    return e.name==fieldPaths[1];
-                })
-
-                let refBlockId = $(event.target).parent().children('.childblock').attr('id');
-                if ($('#'+refBlockId).css("display")=='none' || !$('#'+refBlockId).is('.loaded')){
-                    $('#'+refBlockId).show();
-                    if ($('#'+refBlockId).is('.loaded')){
-                        return;
-                    }
-                    this.doUpdate(field.referenceTo[0], $(event.target).attr('value'), refBlockId);
-                }else{
-                    $('#'+refBlockId).hide();
-                }
-            })
-
-            $('#'+htmlId+' .relationship').on('click',(event)=>{
-                let fieldPath = $(event.target).attr('name');
-                let fieldPaths = fieldPath.split('.');
-
-                let refBlockId = $(event.target).parent().children('.childblock').attr('id');
-                if ($('#'+refBlockId).css("display")=='none' || !$('#'+refBlockId).is('.loaded')){
-                    $('#'+refBlockId).show();
-                    if ($('#'+refBlockId).is('.loaded')){
-                        return;
-                    }
-                    this.doUpdateRelationship(fieldPaths[0],fieldPaths[1], id, refBlockId);
-                }else{
-                    $('#'+refBlockId).hide();
-                }
-            })
       })
   }
 
@@ -375,7 +467,7 @@ export class DataExpendAsTree extends Notifiable{
     }
 
     doUpdateRelationship(sobjectName, fieldApi, id, htmlId){
-        htmlId = htmlId || 'rootdata';
+        htmlId = htmlId || 'objsearchresult';
         let rootdata = document.getElementById(htmlId);
         if (rootdata){
             rootdata.innerHTML=`loading relationship sobject=${sobjectName} id=${id}`;
@@ -409,27 +501,6 @@ export class DataExpendAsTree extends Notifiable{
             $(rootdata).addClass('loaded');
             this.applyFieldsCheck( htmlId);
             this.checkShowAll();
-
-            let refsobject = e.sobjectDescribe.name;
-
-            $('#'+htmlId+' .reference').on('click',(event)=>{
-                let fieldPath = $(event.target).attr('name');
-                let fieldPaths = fieldPath.split('.');
-                let field = this.tree.dataMap[fieldPaths[0]].sobjectDescribe.fields.find(e=>{
-                    return e.name==fieldPaths[1];
-                })
-
-                let refBlockId = $(event.target).parent().children('.childblock').attr('id');
-                if ($('#'+refBlockId).css("display")=='none' || !$('#'+refBlockId).is('.loaded')){
-                    $('#'+refBlockId).show();
-                    if ($('#'+refBlockId).is('.loaded')){
-                        return;
-                    }
-                    this.doUpdate(refsobject, $(event.target).attr('value'), refBlockId);
-                }else{
-                    $('#'+refBlockId).hide();
-                }
-            })
         })
     }
 
@@ -455,6 +526,14 @@ export class DataExpendAsTree extends Notifiable{
             this.tree.sfConn.instanceHostname = sfHost;
             this.tree.sfConn.sessionId = sessionId;
         })
+    }
+
+    updatePanelByObjectName(sobject){
+
+    }
+
+    updatePanelByObjectName(sobject, id){
+
     }
 }
 

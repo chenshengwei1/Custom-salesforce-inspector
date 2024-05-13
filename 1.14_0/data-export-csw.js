@@ -14,6 +14,7 @@ import {ApplicationLog} from "./csw/ApplicationLog1.js";
 import {RecordInfo} from "./csw/RecordInfo.js";
 import {CopytoExcel} from "./csw/CopytoExcel.js";
 import {StockBalance} from "./csw/StockBalance.js";
+import {OrderSVGFlow} from "./csw/OrderSVGFlow.js";
 
 
 
@@ -77,7 +78,13 @@ let items = [{
     name:  'mapperStockbalance',
     label: 'Stock Balance',
     class: StockBalance
+},{
+    name:  'OrderSVGFlow',
+    label: 'Order Flow',
+    class: OrderSVGFlow
 }];
+
+
 for (let item of items){
     $('.top-btn').append(`<button class="tablinks" name="${item.name}">${item.label}</button>`)
     $('.top-tab').append(`<div id="${item.name}" class="tabcontent">
@@ -124,7 +131,7 @@ if (s){
 
 
 {
-
+    window.updateMessageBar = ()=>{};
     let args = new URLSearchParams(location.search.slice(1));
 
     console.log('url args=' + args);
@@ -154,6 +161,7 @@ if (s){
             tabs.push(tab);
             item.tab = tab;
         }catch(e){
+            console.log(e);
         }
       }
       tabs[5].metadateTree = tabs[3];
@@ -170,6 +178,72 @@ if (s){
 
     });
 
+    let lastupdateProcessing = {message:'', isProcessing:false, url:'', title:'',status:'draft'};
+    let sameProcessing = (p1, p2)=>{
+        let keys = ['message','isProcessing', 'url', 'title'];
+        for (let key of keys){
+            if (key == 'message'){
+                if (p1[key].message != p2[key].message){
+                    return false;
+                }
+                continue;
+            }
+            if (p1[key] != p2[key]){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    let getUpdateProcess =()=>{
+        let updateProcessing = {message:'', isProcessing:false, url:'', title:'',status:'draft'};
+        updateProcessing.title = (tree?.autocompleteResults||{}).title;
+        updateProcessing.message = tree?.sfConn?.message.message != 'status 200'? tree?.sfConn?.message:{type:'info',message:''};
+        let nextwork = tree?.getNetwork();
+        let processingURL = Object.keys(nextwork).find(k => nextwork[k]);
+        if (!processingURL){
+          updateProcessing.isProcessing = false;
+        }else{
+          updateProcessing.isProcessing = true;
+          updateProcessing.url = nextwork[processingURL];
+        }
+        return updateProcessing;
+    }
+
+    let updateMessageBarUI = (updateProcessing)=>{
+        $('.root-message').text(updateProcessing.message.message + (updateProcessing.url?' >>>>> loading ' + updateProcessing.url:''));
+        $('.root-message').removeClass('msg-info');
+        $('.root-message').removeClass('msg-error');
+        if (updateProcessing.message.type == 'info'){
+            $('.root-message').addClass('msg-info');
+        }
+        if (updateProcessing.message.type == 'error'){
+            $('.root-message').addClass('msg-error');
+        }
+        let notificationmessage = document.getElementById('notificationmessage');
+        if (notificationmessage){
+            notificationmessage.innerHTML = updateProcessing.title;
+        }
+        if (updateProcessing.isProcessing){
+            $('.tab.top-btn').addClass('url-processing');
+        }else{
+            $('.tab.top-btn').removeClass('url-processing');
+        }
+    }
+
+    let updateMessageBar = ()=>{
+        let newProc = getUpdateProcess();
+        if (!sameProcessing(newProc, lastupdateProcessing)){
+            updateMessageBarUI(newProc);
+            lastupdateProcessing = newProc;
+        }
+    }
+
+    window.updateMessageBar = updateMessageBar;
+
+    setInterval(()=>{
+        updateMessageBar();
+    }, 500);
 }
 
 window.filterRecords = function(records){
