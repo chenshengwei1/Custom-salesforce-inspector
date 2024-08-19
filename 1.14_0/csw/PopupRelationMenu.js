@@ -77,7 +77,7 @@ export class PopupRelationMenu{
             <span link-to="${e.obj}" level="${e.level}" name="${e.attr}">${e.obj}</span>
         </a>`
         }).join('>');
-        $('#'+this.uuid + ' .pop-menu .pop-path').html(`<span class="pop-show-name">Show Name</span><span class="pop-show-label">Show Label</span><span>Path:</span>${newPath}`)
+        $('#'+this.uuid + ' .pop-menu .pop-path').html(`<span class="pop-show-name">Show Name</span><span class="pop-show-label">Show Label</span><span class="pop-uncheck">Uncheck</span> <b>|</b> <span>Path:</span>${newPath}`)
    }
 
     create(){
@@ -172,6 +172,7 @@ export class PopupRelationMenu{
                 $(element).find('.pop-menu-item-label').text(name);
             })
         })
+        
 
         $('#'+this.uuid + ' .relation-field-filter').on('click','.pop-show-label',(event)=>{
             let linkTo = $(event.currentTarget).attr('link-to');
@@ -181,7 +182,10 @@ export class PopupRelationMenu{
                 $(element).find('.pop-menu-item-label').text(name);
             })
         })
-        
+
+        $('#'+this.uuid + ' .relation-field-filter').on('click','.pop-uncheck',(event)=>{
+            $('#'+this.uuid + ' .relation-field-filter li>input[type="checkbox"]:checked').click();
+        })
     }
 
     handlerChangeInput(event){

@@ -163,7 +163,7 @@ export class AutoComplete1{
             this.deleteDIV();
             this.search_value=this.obj.value;
             this.cursorPos = this.obj.selectionStart;
-            let word = this.search_value.substring(0, this.cursorPos).match(/[a-zA-Z0-9_]*$/)[0];
+            let word = this.search_value.substring(0, this.cursorPos).match(/[a-zA-Z0-9_\s]*$/)[0];
 
             var valueArr=this.getAutoCompleteValues();
             valueArr = valueArr.sort((a,b)=>{
@@ -229,7 +229,7 @@ export class AutoComplete1{
             this.hideAutoComplete();
         })
 
-        $('#'+this.autoElementId).on('mοuseοver', '.autocompleteitem',(e)=>{
+        $('#'+this.autoElementId).on('mouseover', '.autocompleteitem',(e)=>{
             console.log('mouseover seq = ', e.target.seq);
             this.autoOnmouseover(e.target, div_index);
         })

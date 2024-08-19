@@ -225,6 +225,8 @@ export class DataExpendAsTree extends Notifiable{
             <button class="tablinks" name="SearchSObject" id="SearchSObject">Search</button>
             <button class="tablinks" name="filterBlankValue" id="filterBlankValue">Filter Blank Value</button></br>
             Use Tooling API: <input class="" id="useToolingAPICheck" type="checkbox" value="N"></input>
+
+            <button class="" id="syncSessionBtn" >Sync Session</button>
         </p>
         <div class="searchresult">
             <div class="totalbar"><span>Total Records : </span><span class="recordsnumber">0</span></div>
@@ -289,6 +291,12 @@ export class DataExpendAsTree extends Notifiable{
       autoComplete1.createApi();
 
       $('#treeroot').addClass('ctrl-null');
+
+
+      
+      $('#syncSessionBtn').on('click', ()=>{
+        this.tree.sfConn.asyncSession();
+      })
 
       $('#SearchSObject').on('click',async ()=>{
           let id = $('#fieldvalyuesearch').val().trim();

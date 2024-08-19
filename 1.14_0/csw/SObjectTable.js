@@ -258,10 +258,7 @@ export class SObjectTable extends Notifiable{
                 console.log('No data to show 2');
                 return;
             }
-            this.record = dataMap.records.find(e=>{
-                return e.Id == this.recordId;
-            })
-            this.record = this.record||{};
+            this.record = this.data?.results || {};
 
             let sobjectDescribe = dataMap.sobjectDescribe;
             let entityParticle = dataMap.entityParticle;
@@ -360,12 +357,12 @@ export class SObjectTable extends Notifiable{
 
             <div>
                 <label for="cars">Object Search: </label>
-                <input id="objectdetailsearch2 feedback-input" class="search" type="input" value=""  type="text" autocomplete="off"
+                <input id="objectdetailsearch2" class="search feedback-input" type="input" value=""  type="text" autocomplete="off"
                 ></input>
             </div>
             <div>
                 <label for="cars">Field Search: </label>
-                <input id="fielddetailsearch feedback-input" class="search" type="input" value=""  type="text" autocomplete="off"
+                <input id="fielddetailsearch" class="search feedback-input" type="input" value=""  type="text" autocomplete="off"
                 ></input>
             </div>
 
@@ -425,6 +422,7 @@ export class SObjectTable extends Notifiable{
             let selectedObjectAPI = this.tree.allSObjectApi.find(e=>{
                 return e.global.name.toLowerCase() == opt.toLowerCase();
             })
+            this.data = null;
             if (!selectedObjectAPI){
                 let objName = await this.searchId(opt);
                 if (objName){
@@ -434,7 +432,9 @@ export class SObjectTable extends Notifiable{
                         return e.global.name.toLowerCase() == opt.toLowerCase();
                     })
                 }else{
-                return;
+                    $('.searchresult .sobjectAPIName').text('unknow object api');
+                    $('.searchresult .sobjectName').text('unknow object name');
+                    return;
                 }
             }
             this.sobject = selectedObjectAPI.global.name;
@@ -469,7 +469,8 @@ export class SObjectTable extends Notifiable{
             $('#refreshSelectObject').click();
         })
 
-        $('#fielddetailsearch').on('change', ()=>{
+
+        $('#fielddetailsearch').on('keyup', (event)=>{
             let opt = $('#fielddetailsearch').val();
             this.fieldsFilter(opt);
         })
@@ -521,7 +522,8 @@ export class SObjectTable extends Notifiable{
             this.objectTypes = objectTypes;
             if (this.objectTypes.length > 0){
                 let sobjectname = this.objectTypes[0];
-                let data = await this.tree.getData(sobjectname, recordId);
+                this.data = await this.tree.getData(sobjectname, recordId);
+                
                 return sobjectname;
             }else{
                 this.sobjectDescribe = {};

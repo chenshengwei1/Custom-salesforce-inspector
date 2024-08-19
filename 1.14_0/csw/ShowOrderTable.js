@@ -153,6 +153,7 @@ export class ShowOrderTable{
             <div class="detailearchresult"></div>
             <div id="showordertable"></div>
             <div id="showorderrealtionshiptable" class="csw-display-flex"></div>
+            <div id="showorder-additional" style="white-space: pre;"></div>
         </div>`
             var div = document.createElement("div");
             div.innerHTML=searchAear;
@@ -170,11 +171,13 @@ export class ShowOrderTable{
             let id = $('#orderIdInput').val().trim();
             let ordernumber = $('#ordernumberInput').val().trim();
             let ordername = $('#ordernameInput').val().trim();
+
+            // CBS PF 00297394
             if (id){
                 if (/^\d{8}|$\d{10}/.test(id)){
                     ordernumber = id;
                     id='';
-                }else if (/^\w{4}\d{8}$/ig.test(id)){
+                }else if (/^\w{4,6}\d{8}$/ig.test(id)){
                     ordername = id;
                     id='';
                 }else if (!/^[\w\d]{15,18}$/.test(id)){
@@ -327,6 +330,8 @@ export class ShowOrderTable{
          */
         let relatinoshipRows2 = [];
         if (sobjectDescribe.name == 'Com_Change_Request__c'){
+
+            // field whatId
             let whatId = sobjectRecord.What_Id__c;
             if (whatId){
                 let clickObject = '';
@@ -339,6 +344,20 @@ export class ShowOrderTable{
                     relatinoshipRows2.push({childSObject:clickObject, field:'Id', value:whatId});
                 }
             }
+
+            // field Detail__c => order.Legacy_Order_Number__c
+            let detail = sobjectRecord.Detail__c;
+            if (detail){
+                let detailJson = {};
+                try{
+                    detailJson = JSON.parse(detail);
+                }catch(e){}
+                if (detailJson.referenceOrderNumber){
+                    relatinoshipRows2.push({childSObject:'Order', field:'Legacy_Order_Number__c', value:detailJson.referenceOrderNumber});
+                }
+            }
+
+            	
         }
 
         for (let relatinoship of relatinoshipRows2){
@@ -347,6 +366,8 @@ export class ShowOrderTable{
         for (let relatinoship of relatinoshipRows){
             await this.createRenderTable(relatinoship.childSObject, relatinoship.field, id);
         }
+
+        this.updateCRAdditinonal(id);
     }
 
     async createRelatedByValue(whatId){
@@ -424,8 +445,22 @@ export class ShowOrderTable{
         })
 
         rTable.fields = showFields.map(e=>{
-            return {label:e.label, property:e.name, isLink:!!e.relationshipName, target:subsobjectDescribe.name+'.'+e.relationshipName};
+            return {label:e.label, property:e.name, isLink:!!e.relationshipName, target:subsobjectDescribe.name+'.'+e.relationshipName, nameField:e.nameField};
         });
+
+        let IdIndex = -1;
+        for (let i = 0;i<rTable.fields.length;i++){
+            if(rTable.fields[i].property == 'Id'){
+                IdIndex = i;
+                break
+            }
+        }
+        if (IdIndex != -1 && IdIndex != 0){
+            let temp = rTable.fields[0];
+            rTable.fields[0] = rTable.fields[IdIndex];
+            rTable.fields[IdIndex] = temp;
+        }
+
 
         let relationshipNames = subsobjectDescribe.fields.filter(e=>e.relationshipName).map(e=>e.relationshipName);
         let selected = Object.keys(allChecked).filter(element => {
@@ -484,4 +519,21 @@ export class ShowOrderTable{
 
     }
 
+    updateCRAdditinonal(cr){
+        let crObj = this.records.find(e=>e.Id == cr);
+        if (crObj && crObj.Detail__c){
+            let payload = JSON.parse(crObj.Detail__c);
+            if (crObj.Additional_Information__c){
+                payload.customerDetails=JSON.parse(crObj.Additional_Information__c);
+            }
+            if(crObj.Target_Object__c=='Cart' && crObj.What_Id__c){
+                let cart = this.records.find(e=>e.Id == crObj.What_Id__c);
+                if (cart && cart.Cart_Items__c){
+                    payload.items=JSON.parse(cart.Cart_Items__c);
+                }
+            }
+            
+            $('#showorder-additional').html(JSON.stringify(payload, '', '\t'));
+        }
+    }
 }

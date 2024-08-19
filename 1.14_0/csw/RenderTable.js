@@ -14,12 +14,37 @@ export class RenderTable{
         $(container).append(`<table id="${this.id}" class="table"><thead><tr  class="row"><th>Loading table datas</th></thead></tr></table>`);
         this.sortable = false;
         this.showingMore = false;
+        this.bindingEvent = false;
+        this.defaulShow = true;
+        this.defaultShowRecords = 20;
     }
 
     update(){
         $('#'+this.id).html(this.create());
         if (!this.dataList.length){
             $(this.container).addClass('record-empty');
+        }
+
+        if (!this.bindingEvent){
+            $('#'+this.id).on('click','.show_hide_btn', (event)=>{
+                let body = $('#'+this.id).find('tbody');
+                let header = $('#'+this.id).find('thead tr:nth-child(2)');
+                if (body.is('.hide')){
+                    $(event.target).text('Hide');
+                    body.removeClass('hide');
+                    header.removeClass('hide');
+                }else{
+                    $(event.target).text('Show');
+                    body.addClass('hide');
+                    header.addClass('hide');
+                }
+            })
+
+            $('#'+this.id).on('click','button.show_more_btn', (event)=>{
+                this.showMore();
+                this.update();
+            })
+            this.bindingEvent = true;
         }
     }
 
@@ -37,12 +62,13 @@ export class RenderTable{
         }
 
         let theDataToShowList = this.displayShowMore()?this.dataList.slice(0, Math.min(100, this.dataList.length)):this.dataList;
+        this.defaulShow = this.dataList.length < this.defaultShowRecords;
         return `<thead>
-                    <tr  class="row header"><th class="cell" colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}(${this.dataList.length})${this.displayShowMore()?'<button class="show_more">Show More</button>':''}</th></tr>
-                    <tr  class="row blue">
+                    <tr  class="row header"><th class="cell" colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}(${this.dataList.length})${this.displayShowMore()?'<button class="show_more_btn hide_table">Show More</button>':''} <button class="show_hide_btn hide_table">${this.defaulShow?'Hide':'Show'}</button></th></tr>
+                    <tr  class="row blue ${this.defaulShow?'':'hide'}">
                         ${this.fields.concat(this.showRelatedFields).map(e=>{
                             return `<th class="cell field-${e.label}" tabindex="0">${e.label}
-                                <button class="actions-button" name="${e.label}" style="${this.sortable?'':'display:none'}">
+                                <button class="actions-button" name="${e.label}" title="${e.property}" style="${this.sortable?'':'display:none'}">
                                     <svg class="actions-icon">
                                         <use xlink:href="symbols.svg#${this.sortField[e.label]?.asc?'arrowdown':'arrowup'}"></use>
                                     </svg>
@@ -51,13 +77,14 @@ export class RenderTable{
                         }).join('')}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="${this.defaulShow?'':'hide'}">
                     ${theDataToShowList.map(r=>{
                         return `
                 <tr class="row ${r.Name}" title="${r.Id}">
 
                 ${this.fields.concat(this.showRelatedFields).map(e=>{
-                    return `<td class="cell field-${e.property}" title="${e.property}" tabindex="0">${this.valuetostring(r, e.property, '')} ${this.translationToLink(r, e)}</td>`
+                    let value = this.valuetostring(r, e.property, '');
+                    return `<td class="cell field-${e.property}" title="${e.property}" tabindex="0">${value} ${this.translationToLink(r, e)}</td>`
                 }).join('')}
                 </tr>`
                     }).join('')}

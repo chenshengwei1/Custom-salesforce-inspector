@@ -431,6 +431,10 @@ export class OrderSVGFlow{
         this.addEventLiser();
         this.getOrchestrationDependency();
 
+        if(this.tree.recordId){
+            $('#svgflow-ordersearchinput').val(this.tree.recordId);
+        }
+
     }
 
     addEventLiser(){
@@ -520,14 +524,17 @@ export class OrderSVGFlow{
 
     async loadOrderOrchestractions(orderId){
 
-        let sobjectname = await  this.tree.getSObjectNameById(id);
+        let sobjectname = await  this.tree.getSObjectNameById(orderId);
         let soql = `select Id,Name,vlocity_cmt__OrchestrationPlanId__c,vlocity_cmt__Account__c,vlocity_cmt__EndOfSequence__c,vlocity_cmt__ExecutionLog__c,vlocity_cmt__ItemImplementationId__c,vlocity_cmt__ItemLength__c,vlocity_cmt__ManualQueueId__c,vlocity_cmt__NumberOfRetries__c,vlocity_cmt__OrchestrationItemDefinitionId__c,vlocity_cmt__OrchestrationItemType__c,vlocity_cmt__OrchestrationPlanDefinitionId__c,vlocity_cmt__OrchestrationQueueId__c,vlocity_cmt__OrderItemId__c,vlocity_cmt__Priority__c,vlocity_cmt__Response__c,vlocity_cmt__StartDate__c,vlocity_cmt__State__c,vlocity_cmt__compensatedOrchestrationItemId__c,vlocity_cmt__ProcessAfter__c from vlocity_cmt__OrchestrationItem__c`;
 
         if (sobjectname == 'Order'){
             soql = soql+` where vlocity_cmt__OrderItemId__r.orderid='${orderId}'`;
         }else if (sobjectname == 'OrderItem'){
             soql = soql+` where vlocity_cmt__OrderItemId__c='${orderId}'`;
-        }else{
+        }else if(sobjectname == 'vlocity_cmt__OrchestrationPlan__c '){
+            soql = soql+` where vlocity_cmt__OrchestrationPlanId__c='${orderId}'`;
+        }
+        else{
             this.showMessage('No correct order/orderitem id', 'error');
             return;
         }
@@ -1147,4 +1154,51 @@ class SVG {
   <line id="svg_15" y2="388" x2="382" y1="267" x1="278" stroke="#000" fill="none"/>
  </g>
  */
+}
+
+class OMPlan2{
+
+    createPlanItem(id){
+        let planItem = {
+            id: 'a3IBU000000Rvwz2AC',
+            status:'completed',
+            label: 'Sales Agent Notification after Stock Replenishment',
+            type: 'Milestone'
+        }
+        let str = `<g aria-haspopup="true" aria-controls="menu1" transform="translate(420,1790)" vlocity_cmt-xomPlanView_xomPlanView="">
+			<foreignObject class="item-content id-${planItem.id}" width="320" height="260"
+				vlocity_cmt-xomPlanView_xomPlanView="">
+				<div tabindex="0" aria-label="${planItem.label}, ${planItem.type}" role="presentation" class="item-content-inner item-border item-content-inner-nojeopardy ${planItem.status}" vlocity_cmt-xomplanview_xomplanview="">
+					<div class="item-name " vlocity_cmt-xomplanview_xomplanview="">
+						<div class="item-header-name" vlocity_cmt-xomplanview_xomplanview="">${planItem.label}</div>
+						<div class="item-menu-icon" tabindex="0" vlocity_cmt-xomplanview_xomplanview="" style="pointer-events: visible;">
+                            <svg width="20" height="20" aria-label="Show more actions" vlocity_cmt-xomPlanView_xomPlanView="">
+								<use fill="#181818" xlink:href="#httpshere2serveuatdvlocitycmtsandboxvfforcecomsldsiconsutilityspritesvgsymbolssvg_threedots" vlocity_cmt-xomPlanView_xomPlanView=""></use>
+							</svg>
+                        </div>
+					</div>
+					<div class="item-details" vlocity_cmt-xomplanview_xomplanview="">
+						<div class="item-type item-type-width" vlocity_cmt-xomplanview_xomplanview="">${planItem.type}</div>
+						<div class="date-container" vlocity_cmt-xomplanview_xomplanview="" style="display: none;">
+							<div class="dates start-date" vlocity_cmt-xomplanview_xomplanview="" style="display: none;">
+							</div>
+							<div class="dates due-date" vlocity_cmt-xomplanview_xomplanview="" style="display: none;">
+							</div>
+						</div>
+						<div class="" vlocity_cmt-xomplanview_xomplanview=""></div>
+					</div>
+					<div class="item-footer" vlocity_cmt-xomplanview_xomplanview="">
+                        <span class="slds-badge slds-badge_lightest" vlocity_cmt-xomplanview_xomplanview="">${planItem.status}</span>
+                        <span class="" vlocity_cmt-xomplanview_xomplanview=""></span>
+                        <span class="external-dep-span" vlocity_cmt-xomplanview_xomplanview=""></span>
+                    </div>
+				</div>
+			</foreignObject>
+		</g>`
+        return str;
+    }
+
+    createPlanLine(planItema, planItemb){
+        return `<path class="line id-${planItema.id} id-${planItemb.id}" d="M370,2120L395,2120L395,1840L420,1840" vlocity_cmt-xomPlanView_xomPlanView=""></path>`
+    }
 }

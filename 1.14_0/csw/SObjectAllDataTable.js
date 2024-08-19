@@ -19,6 +19,7 @@ export class SObjectAllDataTable{
         this.recordCondition= {include:'',exclude:'',fields:{}}
         this.searcherPiler;
         this.maxPageSize = 100;
+        this.apexLogs = {};
     }
     render(){
         return `
@@ -253,10 +254,26 @@ export class SObjectAllDataTable{
     }
 
     load(id){
+        this.apexLogs[id]="loading....";
+        this.addApexlog2Bar();
         this.createMessagePopup('', 'message', true);
         this.tree.getApexlogByid(id).then(e=>{
+            this.apexLogs[id]=e.data;
             this.createMessagePopup(e.data, 'message');
         });
+    }
+
+    addApexlog2Bar(){
+        let apexLogIds = Object.keys(this.apexLogs);
+        if (apexLogIds.length != 0){
+            $('.objsearchApexlogBar').show();
+            let apexLogBarHtml = apexLogIds.map(e=>{
+                return `<span class="apexlog-bar-item" data-logid="${e}"><span class="apexlog-bar-label">${e}</span><img class="apexlog-bar-btn" src="./images/flags.png"></img></span>`;
+            }).join('');
+            $('.objsearchApexlogBar').html(apexLogBarHtml);
+        }else{
+            $('.objsearchApexlogBar').hide();
+        }
     }
 
      createMessagePopup(content , title, loading){
@@ -276,9 +293,15 @@ export class SObjectAllDataTable{
                 <header class="slds-modal__header">
                     <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate">
                     ${title}</h2>
-                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
-                            >
-                            <span class="slds-assistive-text">Close</span>
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close">
+                            <ul class="svgicon">
+                                <li class="slds-assistive-text icon-close"></li>
+                                <li class="icon-delete">
+                                    <svg class="icon" aria-hidden="true">
+                                        <use href="#icon-delete"></use>
+                                    </svg>
+                                </li>
+                            </ul>
                         </button>
                 </header>
                 <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
@@ -290,6 +313,22 @@ export class SObjectAllDataTable{
         if(loading){
             Tools.createProgress($('.slds-modal__content'));
         }
+    }
+
+    addApexlogEvent(){
+        $('.objsearchApexlogBar').on('click','.apexlog-bar-btn', (e)=>{
+            let logId = $(e.target).parents('[data-logid]').attr('data-logid');
+            console.log('delete apex log content='+logId);
+            delete this.apexLogs[logId];
+            this.addApexlog2Bar();
+        })
+
+        $('.objsearchApexlogBar').on('click','.apexlog-bar-label', (e)=>{
+            let logId = $(e.target).parents('[data-logid]').attr('data-logid');
+            console.log('open apex log content='+logId);
+            let data =  this.apexLogs[logId] || 'loading';
+            this.createMessagePopup(data, 'message');
+        })
     }
 
 
@@ -313,7 +352,12 @@ export class SObjectAllDataTable{
             return {name:e,label:e}
         });
 
-        let result = await this.tree.getRecordsByFields(this.sobjectname, this.showFields, this.maxPageSize || 100, this.fieldCondition, selected);
+        let result = await this.tree.getRecordsByFields(this.sobjectname, this.showFields, -1, this.fieldCondition, selected);
+
+        if (result.results?.length > this.maxPageSize && this.maxPageSize > 0){
+            result.results = result.results.slice(0, this.maxPageSize);
+            this.querySoql = result.data.query;
+        }
         this.lastResult = result.data;
         this.totalSize = result.totalSize;
         this.message = result.title;
@@ -522,6 +566,7 @@ export class SObjectAllDataTable{
             Object Search:
             <input class="search feedback-input" id="sobjectsearch2" type="input" value="Order" autocomplete="off" style="width:80%"></input>
             <button class="tablinks comp-btn" name="updateSelectObject" id="refreshSObjectSearch">Refersh</button>
+            <button class="tablinks comp-btn copysoql" name="copysoql" id="refreshSObjectSearch">Copy SOQL</button>
             <br/>
             Page Size:
                 <input class="search feedback-input" id="objectsearchpagesizeinput" type="number" value="100" style="width:30%;line-height:1.5rem" autocomplete="off"></input>
@@ -545,9 +590,11 @@ export class SObjectAllDataTable{
             <div class="totalbar" id="fieldShowFilterContainer"></div>
             <div class="totalbar" id="relationShowFilterContainers"></div>
 
+            <div class="objsearchApexlogBar"></div>
             <div class="objsearchresult"></div>
             <div class="detailearchresult"></div>
             <div id="showallsobjectdatatable"></div>
+            <div id="objsearchApexlogContainter"></div>
         </div>`
             var div = document.createElement("div");
             div.innerHTML=searchAear;
@@ -573,6 +620,8 @@ export class SObjectAllDataTable{
     }
 
     initObjectAllDataHead(){
+
+        this.addApexlogEvent();
 
         $('#sobjectsearch2').on('change', (event)=>{
             let tableName = $(event.target).val();
@@ -696,6 +745,11 @@ export class SObjectAllDataTable{
             this.doUpdaate();
         })
 
+
+        $('button.copysoql').on('click', (event)=>{
+            this.tree.Tools.copyToClipboard(this.querySoql || '');
+        })
+
         let autoComplete1 = new AutoComplete1('sobjectsearch2',()=>{
             return this.tree.allSObjectApi.map(e=>{return e.global});
         });
@@ -720,10 +774,14 @@ export class SObjectAllDataTable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    if(reg.test(item.name) || reg.test(item.label)){
-                        matchItems.push(item);
+                    let match = reg.exec(item.name) || reg.exec(item.label)
+                    if(match){
+                        let m = {...item};
+                        m.__index = match.index;
+                        matchItems.push(m);
                     }
                 }
+                matchItems.sort((a, b)=>{return a.__index - b.__index})
                 return matchItems;
             }
         })
@@ -882,7 +940,16 @@ export class SObjectAllDataTable{
             }
         })
         autoComplete3.createApi();
+
+        this.createTableLisenter();
       }
+
+    createTableLisenter(){
+        $('#showallsobjectdatatable').on('click', 'tbody>tr', (event)=>{
+            $('#showallsobjectdatatable tbody>tr').removeClass('selected');
+            $(event.currentTarget).addClass('selected');
+        })
+    }
 
     formatDate(inputDate, format){
         return Tools.formatDate(inputDate, format);

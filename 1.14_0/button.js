@@ -17,7 +17,8 @@ if (document.querySelector("body.sfdcBody, body.ApexCSIPage, #auraLoadingBox") |
 
 function initButton(sfHost, inInspector) {
   let rootEl = document.createElement("div");
-  rootEl.id = "insext";
+  rootEl.id = "t-insext";
+  rootEl.className = "insext-cls";
   let btn = document.createElement("div");
   btn.className = "insext-btn";
   btn.tabIndex = 0;

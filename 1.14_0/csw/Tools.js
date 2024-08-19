@@ -350,11 +350,16 @@ export class Tools {
     }
     
   let csvSerialize = separator => table.map(row => row.map(cell => "\"" + cellToString(cell).split("\"").join("\"\"") + "\"").join(separator)).join("\r\n");
-  
-  
-  
-   function copyToClipboard(value) {
-    // Use execCommand to trigger an oncopy event and use an event handler to copy the text to the clipboard.
+    copyToClipboard(csvSerialize("\t"));
+  }
+
+
+  static copyToClipboard(value){
+    if (navigator.clipboard){
+      navigator.clipboard.writeText(value);
+      return;
+    }
+// Use execCommand to trigger an oncopy event and use an event handler to copy the text to the clipboard.
     // The oncopy event only works on editable elements, e.g. an input field.
     let temp = document.createElement("input");
     // The oncopy event only works if there is something selected in the editable element.
@@ -376,8 +381,62 @@ export class Tools {
       document.body.removeChild(temp);
     }
   }
-  copyToClipboard(csvSerialize("\t"));
-  }
-}
 
+  /**
+   * 
+   * @param {*} datas  as Array
+   * @param {*} consumer as run function consumer = (item, index)=> { const div=document.createElement('div'); div.textContent = 1; document.body.appendChild(div);}
+   * @param {*} chunkSplitor as ig: chunkSplitor=(task)=>{
+   *                                    setTimout(()=>{
+   *                                      task(time => time< 16)
+   *                                    }, 30)
+   *                                }
+   * @returns 
+   */
+  static performChrunk(datas, consumer, chunkSplitor){
+    let i = 0;
+    if (!datas){
+      datas = [];
+    }
+    if (datas.length === 0){
+      return
+    }
+    if (!chunkSplitor && globalThis.requestAnimationFrame){
+      chunkSplitor = (task)=>{
+        globalThis.requestAnimationFrame(idle=>{
+          task(()=>idle>0);
+        })
+      };
+    }
+    function _run(){
+      if (i == datas.length){
+        return;
+      }
+
+      chunkSplitor((hasTime)=>{
+        const now = Date.now();
+        while(hasTime(Date.now() - now) && i < datas.length){
+          const item = datas[i];
+          consumer(item, i);
+          i++;
+        }
+        _run();
+      })
+    }
+    _run();
+  }
+
+  static debounce(fn, duration=3000){
+    let timerId;
+    return function(...arg){
+      if (timerId){
+        clearTimeout(timerId);
+      }
+      timerId = setTimeout(()=>{
+        fn.apply(this, arg);
+      }, duration)
+    }
+  }
+
+}
 

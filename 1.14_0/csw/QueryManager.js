@@ -76,6 +76,10 @@ class DescribeInfoEx{
                 }, 0);
                 })
             }else{
+                if (apiDescribes.global.globalStatus == "loadfailed"){
+                    apiDescribes.global.globalStatus = "pending";
+                    apiDescribes.global.retry = (apiDescribes.global.retry||0)+1;
+                }
                 reslove(apiDescribes);
             }
         });
@@ -485,8 +489,8 @@ export class QueryMananger{
                         results: data,
                         sobjectDescribe
                     }
-                    this.dataMap[sobjectDescribe.name].records = this.dataMap[sobjectDescribe.name].records ||[];
-                    this.dataMap[sobjectDescribe.name].records.push(data);
+                    //this.dataMap[sobjectDescribe.name].records = this.dataMap[sobjectDescribe.name].records ||[];
+                    //this.dataMap[sobjectDescribe.name].records.push(data);
                 };
                 console.log('success load data ', vm.autocompleteResults, this.dataMap[sobjectDescribe.name]);
                 resolved(vm.autocompleteResults);
@@ -517,6 +521,27 @@ export class QueryMananger{
     async getSObjectNameById(recordId){
         let {objectTypes} = await this.getSObjectById(recordId);
         return objectTypes[0];
+    }
+
+    isVald(exfField, sobjectDescribe){
+        if (exfField.indexOf('.') == -1){
+            let matchField = sobjectDescribe.fields.find(e=>e.name.toLowerCase()==exfField.toLowerCase());
+            return !!matchField;
+        }else{
+            let props = exfField.split('.');
+            let relationShipName = props.shift();
+            let childRelaShip = sobjectDescribe.fields.find(e=>{
+                return e.relationshipName?.toLowerCase() == relationShipName.toLowerCase();
+            });
+            if (childRelaShip && childRelaShip.referenceTo && childRelaShip.referenceTo[0]){
+                let childSObjectDescribe = this.getSobjectDescribe(childRelaShip.referenceTo[0]);
+                if (childSObjectDescribe){
+                    return this.isVald(props.join('.'), childSObjectDescribe);
+                }
+            }
+        }
+        return false;
+        
     }
     
 
@@ -580,7 +605,11 @@ export class QueryMananger{
         this.dataMap[sobjectDescribe.name].nameField = nameFieldDesc;
         let loadFields = fields.map(contextValueField => contextValueField.name);
         if (extfields){
-            loadFields.push(...extfields)
+            for(let exfField of extfields){
+                if (this.isVald(exfField, sobjectDescribe)){
+                    loadFields.push(exfField);
+                }
+            }
         }
         let fieldNames = loadFields.join(", ");
         //let acQuery = "/services/data/v56.0/sobjects/Order/801BC0000078cNSYAY";
@@ -592,6 +621,12 @@ export class QueryMananger{
         let acQuery = '';
         let conditionStr = '';
         if (condition){
+            let translateValue = (val, type)=>{
+                if (type=='boolean' || type=='date' || type=='datetime' || type=='double' || type=='currency'|| type=='int'){
+                    return val;
+                }
+                return "'"+val+"'";
+            }
             conditionStr = Object.keys(condition).filter(k=>condition[k]&&allFilteralbleFields.indexOf(k)!=-1).map(k =>{
 
                 let option = condition[k+'.option'] || '=';
@@ -599,29 +634,29 @@ export class QueryMananger{
                     return k+option+condition[k];
                 }
 
+                
                 let referToField = sobjectDescribe.fields.find(e=>e.name == k);
-                if (referToField.type=='boolean' || referToField.type=='date' || referToField.type=='datetime' || referToField.type=='double'){
-                    return k+option+condition[k];
-                }
-
+                let value = translateValue(condition[k], referToField.type);
                 if (option=='in'){
-                    return k+' '+option+" ('"+condition[k].split(',').join("','")+"') ";
+                    return k+' '+option+" ("+condition[k].split(',').map(e=>translateValue(e, referToField.type)).join(",")+") ";
                 }
                 if (option=='not in'){
-                    return ' not ' + k+" in ('"+condition[k].split(',').join("','")+"') ";
+                    return ' not ' + k+" in ("+condition[k].split(',').map(e=>translateValue(e, referToField.type)).join(",")+") ";
                 }
-                return k+option+" '"+condition[k]+"' ";
+                return k+option+value+" ";
             }).join(' and ');
             if (conditionStr){
                 conditionStr = ' where ' + conditionStr;
             }
         }
+        let originalSOQL = '';
         if (fieldNames){
             let idFieldDesc = sobjectDescribe.fields.find(e=>e.name=='CreatedDate');
              idFieldDesc = idFieldDesc || sobjectDescribe.fields.find(e=>'SystemModstamp'==e.name);
              idFieldDesc = idFieldDesc || sobjectDescribe.fields.find(e=>e.name=='Id');
-            acQuery=`select ${fieldNames} from ${sobjectDescribe.name} ${conditionStr} ${idFieldDesc.sortable?'order by '+idFieldDesc.name+' desc':''} ${offset==0||offset>2000?'':'limit ' +offset}`;
+            acQuery=`select ${fieldNames} from ${sobjectDescribe.name} ${conditionStr} ${idFieldDesc.sortable?'order by '+idFieldDesc.name+' desc':''} ${offset<=0||offset>2000?'':'limit ' +offset}`;
             console.log(acQuery);
+            originalSOQL = acQuery;
             acQuery = this.baseQueryAPI()+`?q=` + encodeURIComponent(acQuery);
         }else{
             acQuery = this.baseSObjectAPI() + sobjectDescribe.name + "/"+value;
@@ -647,6 +682,7 @@ export class QueryMananger{
                 if (data) {
                     //data.records = allData.allRecords;
                     data.allRecords = data.records; 
+                    data.query = originalSOQL;
                     vm.autocompleteResults = {
                         sobjectName:sobjectDescribe.name,
                         title: sobjectDescribe.name + " values: "+data.totalSize,
@@ -939,10 +975,12 @@ export class QueryMananger{
     }
 
     getRecords(){
-        return Object.keys(this.dataMap).flatMap(e=>this.dataMap[e].records||[]);
+        // eturn Object.keys(this.dataMap).flatMap(e=>this.dataMap[e].records||[]);
+        throw new Exception('not support methods');
     }
 
     getSobjectDescribe(sobjectName){
+        this.getDescribeSobject(sobjectName);
         return this.dataMap[sobjectName]?.sobjectDescribe;
     }
 

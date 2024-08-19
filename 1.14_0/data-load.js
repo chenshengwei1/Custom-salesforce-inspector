@@ -434,6 +434,7 @@ export function initScrollTable(scroller) {
       lastColLeft += colVisible[lastColIdx] * colWidths[lastColIdx];
       lastColIdx++;
     }
+    lastColIdx = colCount;
 
     scrolled.textContent = ""; // Delete previously rendered content
     scrolled.style.height = totalHeight + "px";

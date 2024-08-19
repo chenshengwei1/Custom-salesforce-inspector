@@ -8,7 +8,9 @@ export class CopytoExcel{
         
         this.lazy =true;
         this.processingQty = 0;
-        
+        this.sampleRecordCount = 10;
+        this.tabMgr = {tabs:[]};
+        this.tabIndex = 0;
     }
 
     get starting(){
@@ -45,6 +47,10 @@ export class CopytoExcel{
                     <span>Clear</span>
                     <div class="dot"></div>
                 </div>
+                <div class="btn" id="copy2excel-download">
+                    <span>Download</span>
+                    <div class="dot"></div>
+                </div>
                 <div class="btn" id="copy2excel-Report1">
                     <span>Report1</span>
                     <div class="dot"></div>
@@ -60,8 +66,11 @@ export class CopytoExcel{
             </div>
             
         </p>
+        <div class="copy2excel-tab-container">
+            <span class="copy2excel-tab-item" name="add">add</span>
+        </div>
         <div class="copy2excel-searchresult">
-            <div class="totalbar"><span>Total Records : </span><span class="totalrecordnumber">0</span></div>
+            <div class="totalbar"><span>Total Records : </span><span class="totalrecordnumber">0</span> <span> Display Records:</span><input id="exampleRecordsInput" class="search feedback-input" type="number" value="10"></input></div>
             <div class="totalbar" id="copy2excel-notificationmessage"></div>
 
             <div class="copy2excel-view-soql tabitem SOQL">
@@ -70,13 +79,13 @@ export class CopytoExcel{
                     <li id="copy2excel-btn-format" class="js-is-active">Format</li>
                 </ul>
                 <br/>
-                <div class="loader" id="copy2excel-loading"></div>
                 <div class="merge-input" id="merge-input"></div>
                 <textarea contenteditable="true" name="" id="copy2excel-sql" placeholder="input your soql here start to query" style="height: 228px;font-size: large;" class="feedback-text feedback-input"></textarea>
                 <textarea readonly name="" id="copy2excel-message" style="height: 228px;font-size: large;" class="feedback-text feedback-input no-border"></textarea>
                 
             </div>
             <div class="copy2excel-view-result tabitem Result">
+                <input name="" id="copy2excel-filter" style="font-size: large;" class="feedback-text feedback-input no-border"></input>
                 <div id="copy2excel-showallsobjectdatatable"></div>
             </div>
         </div>`
@@ -93,17 +102,216 @@ export class CopytoExcel{
         $('.copy2excel-searchresult .totalrecordnumber').html(qty);
     }
 
+    dataAsTable(){
+        var tab_text = "<table border='2px'><tr bgcolor='#87AFC6'>";
+        var j = 0;
+        var tab = document.getElementById('copy2excel-datatable'); // id of table
+        tab_text = tab_text + tab.rows[0].innerHTML + "</tr>";
+    
+        for (j = 1; j < tab.rows.length; j++) {
+            //tab_text = tab_text + tab.rows[j].innerHTML + "</tr>";
+            //tab_text=tab_text+"</tr>";
+        }
+    
+        let records = this.records;
+        let header = this.tree.Tools.discoverColumns(records||[]);
+        let tableBody = `${records.map(r=>{
+            return `
+    <tr class="row" >
+    ${header.map(e=>{
+        return `<td class="cell field-${e}" tabindex="0" title="${e}">${this.toRecordString(r,  e)||''}</td>`
+    }).join('')}
+    </tr>`
+        }).join('')}`;
+    
+        tab_text = tab_text + tableBody;
+        tab_text = tab_text + "</table>";
+        return tab_text;
+    }
+
+    applyToExcel(){
+        let tab_text = this.dataAsTable();
+        tab_text = tab_text.replace(/<A[^>]*>|<\/A>/g, "");//remove if u want links in your table
+        tab_text = tab_text.replace(/<img[^>]*>/gi, ""); // remove if u want images in your table
+        tab_text = tab_text.replace(/<input[^>]*>|<\/input>/gi, ""); // reomves input params
+    
+        var msie = window.navigator.userAgent.indexOf("MSIE ");
+    
+        // If Internet Explorer
+        if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./)) {
+            txtArea1.document.open("txt/html", "replace");
+            txtArea1.document.write(tab_text);
+            txtArea1.document.close();
+            txtArea1.focus();
+    
+            sa = txtArea1.document.execCommand("SaveAs", true, "Say Thanks to Sumit.xls");
+        } else {
+            // other browser not tested on IE 11
+            sa = window.open('data:application/vnd.ms-excel,' + encodeURIComponent(tab_text));
+        }
+    
+        return sa;
+    }
+
+
+     exportToExcel(tableHtml) {
+        const uri = 'data:application/vnd.ms-excel;base64,';
+        const template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>{table}</table></body></html>';
+    
+        const base64 = (s) => window.btoa(unescape(encodeURIComponent(s)));
+    
+        const format = function (template, context) {
+            return template.replace(/{(\w+)}/g, (m, p) => context[p])
+        };
+    
+        const html = tableHtml;
+        const ctx = {
+            worksheet: 'Worksheet',
+            table: html,
+        };
+    
+        const link = document.createElement("a");
+        link.download = this.objectName +".xls";
+        link.href = uri + base64(format(template, ctx));
+        link.click();
+    }
+
+     s2ab(s) {
+        var buf = new ArrayBuffer(s.length);
+        var view = new Uint8Array(buf);
+        for (var i=0; i!=s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
+        return buf;
+      }
+
+    exportAsXslx(tableHtml){
+        const base64 = (s) => window.btoa(unescape(encodeURIComponent(s)));
+
+        var bin = window.atob(base64(tableHtml));
+        var ab = this.s2ab(bin); // from example above
+        var blob = new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;' });
+
+        var link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = this.objectName +'.xls';
+        link.click();
+    }
+
+    updateTabBaritem(){
+        let html = this.tabMgr.tabs.map((e, index)=>{
+            return `<span class="copy2excel-tab-item${e.activate?' activate':''}" name="${e.name}">${e.name}</span>`
+        }).join('');
+        html = html + `<span class="copy2excel-tab-item" name="add">Add</span>`
+        $('.copy2excel-tab-container').html(html);
+        this.showTab(this.tabMgr.tabs.find(e=>e.activate));
+    }
+
+    saveBeforeTab(inactivateTab){
+        if (!inactivateTab){
+            return;
+        }
+        let soql = $('#copy2excel-sql').val().trim();
+        inactivateTab.soql = soql;
+        inactivateTab.records = this.records;
+    }
+
+    showTab(activateTab){
+        if (!activateTab){
+            return;
+        }
+        $('#copy2excel-sql').val(activateTab.soql||'');
+        this.records = activateTab.records || [];
+        this.exampleTable(activateTab.records);
+    }
+
+    initTabLinsener(){
+        $('.copy2excel-tab-container').on('click', '.copy2excel-tab-item',(event)=>{
+            let name = $(event.target).attr('name');
+            if (name == 'add'){
+                let inactivateTab = this.tabMgr.tabs.find(e=>e.activate);
+                this.tabMgr.tabs.forEach(e=>{e.activate = false});
+                let newTab = {name:'item-'+this.tabIndex, activate: true};
+                this.tabMgr.tabs.push(newTab);
+                this.tabIndex++;
+                
+                if (!inactivateTab){
+                    this.saveBeforeTab(newTab);
+                }else{
+                    this.saveBeforeTab(inactivateTab);
+                }
+            }else{
+                let tab = this.tabMgr.tabs.find(e=>e.name==name);
+                if (tab){
+                    if (tab.activate){
+                        return;
+                    }else{
+                        let inactivateTab = this.tabMgr.tabs.find(e=>e.activate);
+                        this.saveBeforeTab(inactivateTab);
+                        this.tabMgr.tabs.forEach(e=>{e.activate = false});
+                        tab.activate = true;
+                    }
+                }
+            }
+            this.updateTabBaritem();
+        })
+
+        let tabs = this.getTabsSoql();
+        for (let tab of tabs){
+            let newTab = {name:'item-'+this.tabIndex, soql:tab.sql};
+            this.tabMgr.tabs.push(newTab);
+            this.tabIndex++;
+        }
+        this.updateTabBaritem();
+    }
+
+    getTabsSoql(){
+        let history = JSON.parse(localStorage['cp2ecl.sql']||'{}');
+        return Object.keys(history).map(e=>{return {name:e, sql:history[e]}});
+    }
+
+    saveTabSoql(tabName, soql){
+        let history = JSON.parse(localStorage['cp2ecl.sql']||'{}');
+        history[tabName] = soql;
+        localStorage['cp2ecl.sql'] = JSON.stringify(history);
+    }
+
 
     initObjectAllDataHead(){
-
+        this.initTabLinsener();
         $('#copy2excel-refreshSObjectSearch').on('click', ()=>{
             let soql = $('#copy2excel-sql').val().trim();
 
+            let tabName = $('.copy2excel-tab-item.activate').attr('name');
+            this.saveTabSoql(tabName||'add', soql);
             this.search(soql);
+        })
+
+        $('#copy2excel-download').on('click', ()=>{
+            this.clear();
+            try{
+                //this.applyToExcel();
+                let soql = $('#copy2excel-sql').val().trim();
+                let ma = /from\s+([\w\d_]+)/ig.exec(soql);
+                if (ma){
+                    this.objectName = ma[1];
+                }
+
+                this.exportToExcel(this.dataAsTable());
+                //this.exportAsXslx(this.dataAsTable());
+            }catch(e){
+
+            }
+            this.addMessage('download success:');
         })
 
         $('#copy2excel-refreshSObjectCopy').on('click', ()=>{
             this.clear();
+            try{
+                //this.applyToExcel();
+                //this.exportToExcel(this.dataAsTable());
+                this.test();
+            }catch(e){
+
+            }
             this.tree.Tools.exportExcel(this.records||[], this.headers);
             this.addMessage('copy success:');
         })
@@ -177,7 +385,51 @@ export class CopytoExcel{
             $('#merge-input').html('');
         });
 
-        
+        $('#exampleRecordsInput').on('change', ()=>{
+            this.sampleRecordCount = +$('#exampleRecordsInput').val();
+            this.exampleTable(this.records);
+        })
+
+        $('#copy2excel-filter').on('change', ()=>{
+            this.exampleTable(this.records);
+        })
+    }
+
+    test(){
+        let map = {};
+        for (let m of this.records){
+            if (m.Detail__c.indexOf('NTVSSP') == -1){
+                continue;
+            }
+            let key = m.CreatedDate.replaceAll('-','').replaceAll('T','').replaceAll('.','').replaceAll(':','').substr(0, 12);
+            //let key = this.tree.Tools.formatDate(new Date(Date.parse(m.CreatedDate)), 'yyyyMMddhhmm');
+            map[key] = (map[key]||0)+1;
+        }
+        let length = Object.keys(map).length;
+        let sum = 0;
+        let max = 0;
+        let min = 0;
+        Object.keys(map).forEach(e=>{
+            sum+=map[e];
+            max  = Math.max(max, map[e]);
+            min  = Math.min(min, map[e]);
+        });
+        console.log(map)
+        console.log("sum="+sum);
+        console.log("avg="+(sum/length));
+        console.log("max="+max);
+        console.log("min="+min);
+    }
+
+    filteredResult(records){
+        let filteredKeyword = $('#copy2excel-filter').val();
+        if (!filteredKeyword || !records){
+            return records;
+        }
+        return records.filter(e=>{
+            let json = JSON.stringify(e);
+            return json.toLowerCase().indexOf(filteredKeyword.toLowerCase()) != -1;
+        })
     }
 
     startMergeInput(h1, h2){
@@ -220,7 +472,20 @@ export class CopytoExcel{
         this.lastResult = result.data;
         this.starting = true;
         this.lazyNext(this.lastResult);
+        //this.prepeareRecords(this.records);
         this.exampleTable(this.records);
+    }
+
+    prepeareRecords(records){
+        for (let record of records){
+            if (record.vlocity_cmt__AttributeSelectedValues__c){
+                try{
+                    
+                    record.vlocity_cmt__AttributeSelectedValues__r=JSON.parse(record.vlocity_cmt__AttributeSelectedValues__c);
+                }catch(e){}
+            }
+        }
+        return records;
     }
 
     
@@ -257,31 +522,52 @@ export class CopytoExcel{
 
     lazyUpdate(result){
         let newRecords = result.records || [];
+        this.prepeareRecords(newRecords);
         this.records.push(...newRecords);
         this.processingQty = this.records.length;
         this.addMessage('update records:' + newRecords.length + ' - ' +this.records.length + ' - ' + this.totalSize);
     }
 
     exampleTable(records){
-        let h1 = this.tree.Tools.discoverColumns(records||[]);
-        $('#copy2excel-showallsobjectdatatable').html(this.render(records.slice(0, Math.min(10, records.length)), h1));
+        let filteredRecords = this.filteredResult(records);
+        let h1 = this.tree.Tools.discoverColumns(filteredRecords||[]);
+        $('#copy2excel-showallsobjectdatatable').html(this.render(filteredRecords.slice(0, Math.min(this.sampleRecordCount, filteredRecords.length)), h1));
     }
 
+    toRecordString(r, f){
+        if (r[f]){
+            return r[f];
+        }
+        if (f.indexOf('.') != -1){
+            let paths = f.split('.');
+            const firstElement = paths.shift();
+            return this.toRecordString(r[firstElement], paths.join('.'));
+        }
+        return '';
+    }
     render(records, header){
         if (!records){
             return '';
         }
         if (!records.length)return'';
-        var toRecordString = (r, f)=>{
-            if (r[f]){
-                return r[f];
-            }
-            if (f.indexOf('.') != -1){
-                let paths = f.split('.');
-                const firstElement = paths.shift();
-                return toRecordString(r[firstElement], paths.join('.'));
-            }
-            return '';
+
+        let genTableRows = (r,$index)=>{
+            return `
+                <tr class="row" >
+
+                ${header.map(e=>{
+                    return `<td class="cell field-${e}" tabindex="0" title="${e}">${e=='_'?($index+1):this.toRecordString(r,  e)||''}</td>`
+                }).join('')}
+                </tr>`
+        }
+        let genAllRows =(datas)=>{
+            let lines = '';
+            this.tree.Tools.performChrunk(datas, (r,$index)=>{
+                let line = genTableRows(r,$index);
+                $('#copy2excel-datatable tbody').append(line);
+                
+            });
+            return lines
         }
         return `
             <table id="copy2excel-datatable" class="table">
@@ -294,15 +580,7 @@ export class CopytoExcel{
                     </tr>
                 </thead>
                 <tbody>
-                    ${records.map(r=>{
-                        return `
-                <tr class="row" >
-
-                ${header.map(e=>{
-                    return `<td class="cell field-${e}" tabindex="0" title="${e}">${toRecordString(r,  e)||''}</td>`
-                }).join('')}
-                </tr>`
-                    }).join('')}
+                    ${genAllRows(records)}
                 </tbody>
             </table>`
     }

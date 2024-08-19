@@ -16,6 +16,11 @@ export class sfConn1{
       return {type:'error', message:message};
     }
 
+    asyncSession(){
+      let conversation = JSON.parse(localStorage['conversation']||'{}');
+      this.sessionId = conversation[this.instanceHostname];
+    }
+
     async getSession(sfHost) {
         let message = await new Promise(resolve =>
           chrome.runtime.sendMessage({message: "getSession", sfHost}, resolve));
@@ -26,14 +31,7 @@ export class sfConn1{
             let conversation = JSON.parse(localStorage['conversation']||'{}');
             this.conversation = conversation;
 
-            let currentConversation = this.conversation[this.instanceHostname];
-            if (!currentConversation){
-                currentConversation = {};
-                this.conversation[this.instanceHostname]=currentConversation;
-            }
-            if (!currentConversation[message.key]){
-                currentConversation[message.key] = new Date().getTime();
-            }
+            this.conversation[this.instanceHostname] = this.sessionId;
             localStorage['conversation'] = JSON.stringify(this.conversation);
         }
     }
@@ -134,19 +132,23 @@ export class sfConn1{
           this.message = this.error('Network error, offline or timeout');
           throw err;
         } else {
+          
           if (!logErrors) { console.error("Received error response from Salesforce REST API", xhr); }
           let err = new Error();
           err.name = "SalesforceRestError";
           err.detail = xhr.response;
           try {
             err.message = err.detail.map(err => `${err.errorCode}: ${err.message}${err.fields && err.fields.length > 0 ? ` [${err.fields.join(", ")}]` : ""}`).join("\n");
+            if (xhr.response[0].errorCode == "INVALID_SESSION_ID"){
+              this.asyncSession();
+            }
           } catch (ex) {
             err.message = JSON.stringify(xhr.response);
           }
           if (!err.message) {
             err.message = "HTTP error " + xhr.status + " " + xhr.statusText;
-            this.message = this.error(err.message);
           }
+          this.message = this.error(err.message);
           throw err;
         }
       }

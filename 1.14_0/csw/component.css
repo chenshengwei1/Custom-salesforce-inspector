@@ -204,10 +204,10 @@ table.table {
   
   .row {
 	display: table-row;
-	background: #f6f6f6;
+	background-color: #f6f6f6;
   }
-  .row:nth-of-type(odd) {
-	background: #e9e9e9;
+  .row-1:nth-of-type(odd) {
+    background-color: #e9e9e9;
   }
   .row.header {
 	font-weight: 900;
@@ -223,6 +223,11 @@ table.table {
   .row.dummy-record{
 	background: #b2c5d3;
   }
+
+  tbody>tr.selected{
+    background-color: #00d061;
+  }
+
   @media screen and (max-width: 580px) {
 	.row {
 	  padding: 14px 0 7px;
@@ -1027,4 +1032,51 @@ h2#modal-heading-01 {
 }
 .no-border:focus {
 	border-width: 0px;
+}
+
+
+
+.hide_table{
+  display: none;
+  background: inherit;
+  color: inherit;
+  border-width: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.row.header:hover  .hide_table{
+  display: unset;
+}
+
+.copy2excel-tab-item {
+  height: 15px;
+  width: 200px;
+  border-width: 1px;
+  border-style: solid;
+  padding: 0 20px;
+  cursor: pointer;
+  border-radius: 3px;
+  background-color: bisque;
+  border-color: bisque;
+
+  --bg: #ffcc00;
+  background-color: var(--bg);
+  color: color-contrast(var(--bg) vs #fff, #000);  /** 基于背景反转颜色 **/
+}
+
+.activate.copy2excel-tab-item {
+  --bg: rgb(154, 4, 4);
+  background: var(--bg);
+  color: color-contrast(var(--bg) vs #fff, #000);  /** 基于背景反转颜色 **/
+}
+[name="add"].copy2excel-tab-item {
+  --bg: rgb(4 154 43);
+  background: var(--bg);
+  color: color-contrast(var(--bg) vs #fff, #000);  /** 基于背景反转颜色 **/
+}
+.copy2excel-tab-item:hover {
+  --bg: rgb(154, 4, 4);
+  background: var(--bg);
+  color: color-contrast(var(--bg) vs #fff, #000);  /** 基于背景反转颜色 **/
 }

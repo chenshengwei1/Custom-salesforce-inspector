@@ -51,6 +51,7 @@ export let sfConn = {
     }
 
     xhr.responseType = "json";
+    window.inspectorError=='';
     await new Promise((resolve, reject) => {
       if (progressHandler) {
         progressHandler.abort = () => {
@@ -75,6 +76,7 @@ export let sfConn = {
       let err = new Error();
       err.name = "SalesforceRestError";
       err.message = "Network error, offline or timeout";
+      window.inspectorError = err.message;
       throw err;
     } else {
       if (!logErrors) { console.error("Received error response from Salesforce REST API", xhr); }
@@ -89,6 +91,7 @@ export let sfConn = {
       if (!err.message) {
         err.message = "HTTP error " + xhr.status + " " + xhr.statusText;
       }
+      window.inspectorError = err.message;
       throw err;
     }
   },
@@ -143,6 +146,7 @@ export let sfConn = {
     });
 
     xhr.responseType = "document";
+    window.inspectorError ='';
     await new Promise(resolve => {
       xhr.onreadystatechange = () => {
         if (xhr.readyState == 4) {
@@ -165,6 +169,7 @@ export let sfConn = {
       } catch (ex) {
         err.message = "HTTP error " + xhr.status + " " + xhr.statusText;
       }
+      window.inspectorError = err.message;
       throw err;
     }
   },

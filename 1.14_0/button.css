@@ -1,12 +1,12 @@
-#insext {
+#t-insext {
     z-index: 1000;
     display: block;
     position: fixed;
-    top: 122px;
+    top: 152px;
     right: 0;
     vertical-align: middle;
 }
-#insext .insext-popup {
+#t-insext .insext-popup {
     box-sizing: border-box;
     width: 280px;
     height: 430px;
@@ -20,10 +20,10 @@
     border: 1px solid #d8dde6;
     display: none;
 }
-#insext.insext-active .insext-popup {
+#t-insext.insext-active .insext-popup {
     display: block;
 }
-#insext .insext-btn {
+#t-insext .insext-btn {
     box-sizing: border-box;
     width: 15px;
     height: 33px;
@@ -38,12 +38,15 @@
     box-shadow: -2px 0 2px #a0a6ab;
     opacity: .4;
 }
-#insext .insext-btn:hover,
-#insext.insext-active .insext-btn {
-    opacity: 1;
+#t-insext .insext-btn {
+    background-color: red;
+}
+#t-insext .insext-btn:hover,
+#t-insext.insext-active .insext-btn {
+    opacity: 1;rgb(134, 34, 34) rgb(255, 0, 0)
     width: 20px; 
 }
-#insext .insext-btn img {
+#t-insext .insext-btn img {
     box-sizing: border-box;
     width: 10px;
     height: 15px;

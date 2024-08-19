@@ -656,7 +656,7 @@ export class ReportTable{
         let treeroot = document.getElementById(rootId);
         let searchAear = `
         <p>
-            Object Search:<br/>
+            Object Search:<input type="search" placeholder="Filter here..." id="report-filtered-condition"/><br/>
             <input class="search feedback-input no-border" id="report-sobjectsearch2" disabled type="input" value="Report" autocomplete="off" style="width:70%"></input>
             <input class="search feedback-input" id="report-sobjectsearch" type="input" value="Order" autocomplete="off" style="width:70%"></input>
             <button class="tablinks tabitem-btn" name="Reports" id="report-refreshSObjectReports">Reports</button>
@@ -811,7 +811,7 @@ export class ReportTable{
        </label>
      </div> 
      `);
-        $('#object-field-tree-groupby').html(`<div class="drag-container">${content.join('')}</div>` +  + this.createConditionPanel());
+        $('#object-field-tree-groupby').html(`<div class="drag-container">${content.join('')}</div>` + this.createConditionPanel());
 
       $('.report-condition-input').val(this.referConditions.join('\n'));
     }
@@ -1319,6 +1319,18 @@ export class ReportTable{
             }
             
         })
+
+        $('#object-field-tree').on('click','li span.item-name',(event)=>{
+            $('li span.item-name').removeClass('selected');
+            $(event.currentTarget).addClass('selected');
+            $('#report-filtered-condition').val($(event.currentTarget).attr('name') + "=''");
+        })
+
+        $('#report-filtered-condition').on('change', ()=>{
+            
+        })
+
+        
 
         Tools.setAutoComplete('report-sobjectsearch', this.tree);
 
