@@ -17,6 +17,29 @@ export class OrderSVGFlow{
         let treeroot = document.getElementById(rootId);
         let searchAear = `
         <style>
+            .order-flow-siber {
+                width: 600px;
+                position: fixed;
+                right: 10px;
+                top: 100px;
+                font-size: large;
+                background-color: chocolate;
+                color: black;
+                border: #006442 2px solid;
+                border-radius: 4px;
+                padding: 5px 10px;
+                text-wrap: wrap;
+                overflow:auto;
+            }
+            .order-flow-siber>div {
+                padding-left: 5px;
+                padding-top: 10px;
+            }
+
+            .order-flow-siber .value{
+                color:#efefef;
+                white-space: pre;
+            }
             .line[vlocity_cmt-xomPlanView_xomPlanView] {
                 fill: none;
                 stroke: var(--slds-g-color-neutral-base-40, #555);
@@ -28,6 +51,11 @@ export class OrderSVGFlow{
             }
             .Completed{
                 --header-background-color:#CDEFC4;
+            }
+
+            .Fatally{
+                --header-background-color: var(--slds-g-color-error-base-90, #FEDED8);
+                --sds-c-badge-lightest-color-border: var(--slds-g-color-error-base-60, #FE5C4C);
             }
 
             svg.container{
@@ -218,16 +246,16 @@ export class OrderSVGFlow{
             </div>
             
         </p>
-        <div class="copy2excel-searchresult">
+        <div class="orderflow-searchresult">
             <div class="totalbar"><span>Total Records : </span><span class="totalrecordnumber">0</span></div>
             <div class="totalbar" id="svgflow-notificationmessage" style="white-space: pre;"></div>
-            <div class="copy2excel-view-result tabitem Result">
+            <div class="orderflow-view-result tabitem Result">
                 <div id="svgflow-showallsobjectdatatable"></div>
             </div>
-            <div class="copy2excel-view-result2 tabitem Result">
+            <div class="orderflow-view-result2 tabitem Result">
                 <div id="svgflow-showallsobjectdatatable2"></div>
             </div>
-            <svg id="copy2excel-view-result"   style="  background-color: aliceblue;" transform="translate(.5, .5)" width="3820" height="2582" class="defaultCursor">
+            <svg id="orderflow-view-result" display="none"  style="  background-color: aliceblue;" transform="translate(.5, .5)" width="3820" height="2582" class="defaultCursor">
                 <g  style="" id="selectorGroup2">
                     <rect stroke="#A00" fill="#fff0f000" x="0" y="0" width="0.0" height="0" id="svg_selector_group_14"/>
                 </g>
@@ -607,7 +635,7 @@ export class OrderSVGFlow{
                     stroke-dashoffset=".5" shape-rendering="crispEdges" display="none"
                     d="M2267,1850.6L2423,1850.6L2423,1959.6L3212,1959.6"></path>
             </svg>
-            <div class="copy2excel-view-result3 tabitem Result">
+            <div class="orderflow-view-result3 tabitem Result">
                 <div id="svgflow-showallsobjectdatatable3"></div>
             </div>
         </div>`
@@ -618,7 +646,7 @@ export class OrderSVGFlow{
     }
 
     totalReocrds(qty){
-        $('.copy2excel-searchresult .totalrecordnumber').text(qty);
+        $('.orderflow-searchresult .totalrecordnumber').text(qty);
 
     }
 
@@ -647,7 +675,7 @@ export class OrderSVGFlow{
             this.loadOrderOrchestractions(id);
         })
         
-        $('.copy2excel-searchresult svg').on('click', (event)=>{
+        $('.orderflow-searchresult svg').on('click', (event)=>{
             
             if ($(event.target).is('svg')){
                 this.unhandleSelection();
@@ -656,6 +684,15 @@ export class OrderSVGFlow{
             console.log('click', event.target);
             this.handleSelection(event.target);
         })
+
+        $('.orderflow-searchresult').on('click',()=>{
+            $('.order-flow-siber').remove();
+        })
+
+        $('.orderflow-searchresult').on('click','.order-flow-siber', (event)=>{
+            event.stopPropagation();
+        })
+        
     }
     
     handleSelection(target){
@@ -741,6 +778,7 @@ export class OrderSVGFlow{
         vlocity_cmt__OrchestrationQueueId__c,
         vlocity_cmt__OrderItemId__c,
         vlocity_cmt__OrderItemId__r.Order.Name,
+        vlocity_cmt__OrderItemId__r.OrderId,
         vlocity_cmt__Priority__c,
         vlocity_cmt__Response__c,
         vlocity_cmt__StartDate__c,
@@ -757,8 +795,10 @@ export class OrderSVGFlow{
         }
         else{
             this.showMessage('No correct order/orderitem id', 'error');
+            $('.orderflow-view-result3').show();
             return;
         }
+        $('.orderflow-view-result3').hide();
 
         let result = await this.tree.getRecordsBySoql(soql);
         this.message = result.title;
@@ -770,7 +810,22 @@ export class OrderSVGFlow{
         }
         this.fetchOrchestrationPlanDefinition(this.lastData.allRecords||[]);
         this.fetchOrderName(this.lastData.allRecords||[]);
+        if (this.lastData.allRecords.length){
+            await this.fetchDependencyInstanceItem(this.lastData.allRecords[0].vlocity_cmt__OrderItemId__r.OrderId);
+        }
         await this.processOrchestractData(this.lastData.allRecords||[]);
+    }
+
+    async fetchDependencyInstanceItem(orderId){
+        let soql = `select Id,Name,
+        vlocity_cmt__OrchestrationItemId__c,
+        vlocity_cmt__DependsOnItemId__c,
+        vlocity_cmt__OrchestrationDependencyDefinitionId__c 
+        from vlocity_cmt__OrchestrationDependency__c
+            where vlocity_cmt__OrchestrationItemId__r.vlocity_cmt__OrderItemId__r.OrderId='${orderId}'`;
+        let result = await this.tree.getRecordsBySoql(soql);
+        this.message = result.title;
+        this.orderitemDependecyInstances = result?.results ||[];
     }
 
     fetchOrchestrationPlanDefinition(orchestrationItems){
@@ -800,7 +855,10 @@ export class OrderSVGFlow{
 
         let omplan2 = new OMPlan2(this.allOrchestrationDependencyDefinitions, 'svgflow-showallsobjectdatatable2');
         omplan2.master = this;
+        omplan2.orderitemDependecyInstances = this.orderitemDependecyInstances;
         omplan2.create(allRecords);
+
+        
 
         let allRects = [];
         let rectMps = {};
@@ -869,8 +927,8 @@ export class OrderSVGFlow{
         // $('#svg_selector_group_14').attr('height',bottom-top);
         // $('#svg_selector_group_14').show();
 
-       // $('#copy2excel-view-result').attr('viewBox',`${left - 50} ${top- 50} ${right-left+100} ${bottom-top+100}`)
-        //$('#copy2excel-view-result').css({width:right-left+100+'px', height:bottom-top+100+'px'});
+       // $('#orderflow-view-result').attr('viewBox',`${left - 50} ${top- 50} ${right-left+100} ${bottom-top+100}`)
+        //$('#orderflow-view-result').css({width:right-left+100+'px', height:bottom-top+100+'px'});
     }
 
     getSVGRectByOrchId(ref){
@@ -945,6 +1003,85 @@ export class OrderSVGFlow{
         this.id2groupMap = this.initGroupping(this.allOrchestrationDependencyDefinitions);
         this.initProcessAllData(this.allOrchestrationDependencyDefinitions);
         this.processData(this.allOrchestrationDependencyDefinitions, this.id2groupMap);
+    }
+
+    async query(recordId){
+        let sobjectname = await this.tree.getSObjectNameById(recordId);
+        if(sobjectname == 'vlocity_cmt__OrchestrationItem__c'){
+            let soql = `select Id,Name,
+            vlocity_cmt__OrchestrationPlanId__c,
+            vlocity_cmt__OrchestrationItemDefinitionId__c,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.Name,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.RecordType.Name,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__itemImplementationId__r.Name,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__itemImplementationId__r.vlocity_cmt__Implementation__c,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__ConditionData__c,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__SystemInterfaceId__r.Id,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__SystemInterfaceId__r.vlocity_cmt__Implementation__c,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__SystemInterfaceId__r.vlocity_cmt__Key__c,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__EventConditionData__c,
+            vlocity_cmt__OrchestrationItemDefinitionId__r.vlocity_cmt__itemImplementationId__r.Id,
+            vlocity_cmt__OrchestrationPlanDefinitionId__c,
+            vlocity_cmt__OrderItemId__c,
+            vlocity_cmt__Request__c,
+            vlocity_cmt__Response__c,
+            vlocity_cmt__State__c 
+            from vlocity_cmt__OrchestrationItem__c`;
+            soql = soql+` where Id='${recordId}'`;
+            let result = await this.tree.getRecordsBySoql(soql);
+            let records = result.data.records;
+            console.dir(records);
+            let planitem = records[0];
+
+            let toEventConditionExpress = (val)=>{
+                if (!val){
+                    return '';
+                }
+
+                try{
+                    let condObj = JSON.parse(val);
+                    if (condObj.type == "SIMPLE"){
+                        return condObj['left-side-type']+'.'+condObj['left-side'] + ''+condObj['op'] +condObj['right-side'];
+                    }
+                }catch(e){
+
+                }
+                return val;
+            }
+
+            let formartJSON = (val)=>{
+                if (!val){
+                    return '';
+                }
+                try{
+                    return JSON.stringify(JSON.parse(val), '', '\t');
+                }catch(e){
+
+                }
+                return val;
+            }
+
+            if (!$('.order-flow-siber').length){
+                $('.orderflow-searchresult').append(`<div class="order-flow-siber"></div>`);
+            }
+
+            $('.orderflow-searchresult .order-flow-siber').html(`
+                    <div>ID:<span class="value">${planitem.Id}</span></div>
+                    <div>Name:<span class="value">${planitem.Name}</span></div>
+                    <div>Request:<span class="value"><br/>${formartJSON(planitem.vlocity_cmt__Request__c||'')}</span></div>
+                    <div>Response:<span class="value"><br/>${formartJSON(planitem.vlocity_cmt__Response__c||'')}</span></div>
+                    <div>Status:<span class="value">${planitem.vlocity_cmt__State__c}</span></div>
+                    <div>Type:<span class="value">${planitem.vlocity_cmt__OrchestrationItemDefinitionId__r?.RecordType.Name}</span></div>
+                    <div>Implementation:<span class="value">${planitem.vlocity_cmt__OrchestrationItemDefinitionId__r?.vlocity_cmt__itemImplementationId__r?.vlocity_cmt__Implementation__c||''}</span></div>
+                    <div>Implementation2:<span class="value">${planitem.vlocity_cmt__OrchestrationItemDefinitionId__r?.vlocity_cmt__SystemInterfaceId__r?.vlocity_cmt__Implementation__c||''}</span></div>
+                    <div>EventCondition:<span class="value">${toEventConditionExpress(planitem.vlocity_cmt__OrchestrationItemDefinitionId__r?.vlocity_cmt__EventConditionData__c||'')}</span></div>
+                    <div>Condition:<span class="value">${toEventConditionExpress(planitem.vlocity_cmt__OrchestrationItemDefinitionId__r?.vlocity_cmt__ConditionData__c||'')}</span></div>
+                `);
+        }
+        else{
+            this.showMessage('No correct order/orderitem id', 'error');
+            return;
+        }
     }
 
     createOMPlanDefine(){
@@ -1077,7 +1214,7 @@ export class OrderSVGFlow{
 
         $('#flowGroup').html(this.svgObjectToHtml(allSVGObjects));
         let maxSize = this.getMaxWithAndHeight(allSVGObjects);
-        $('#copy2excel-view-result').css({width:maxSize.maxW+100+'px', height:maxSize.maxH+100+'px'});
+        $('#orderflow-view-result').css({width:maxSize.maxW+100+'px', height:maxSize.maxH+100+'px'});
     }
 
     stockItemToString(stackItem){
@@ -1260,173 +1397,6 @@ export class OrderSVGFlow{
     }
 }
 
-class Group{
-    constructor(x, y, id){
-        this.id=id;
-        this.elements = [];
-        this.x = x;
-        this.y = y;
-        this.allSVGObjects = [];
-        this.svgMap = {};
-    }
-
-    moveTo(x, y){
-        let np = {x, y};
-        for(let element of this.elements){
-            let child = $('#'+element.id)[0];
-            if (child.type == 'rect'){
-                let ox = child.x;
-                let oy = child.y;
-                let newR = this.change({x:ox,y:oy}, np);
-                child.x = newR.x;
-                child.y = newR.y;
-            }else if (child.type == 'line'){
-                let newR1 = this.change({x:child.x1,y:child.y1}, np);
-                child.x1 = newR1.x;
-                child.y1 = newR1.y;
-
-                let newR2 = this.change({x:child.x2,y:child.y2}, np);
-                child.x2 = newR2.x;
-                child.y2 = newR2.y;
-            }else if (child.type == 'text'){
-                let newR1 = this.change({x:child.x,y:child.y}, np);
-                child.x = newR1.x;
-                child.y = newR1.y;
-            }
-        }
-    }
-
-    change(op, np){
-        let nx = op.x + np.x - this.x;
-        let ny = op.y + np.y - this.y;
-        return {x:nx,y:ny}
-    }
-
-    getSize(){
-        let left = 0;
-        let right = 0;
-        let up = 0;
-        let bottom = 0;
-        for(let element of this.elements){
-            let child = $('#'+element.id)[0];
-            if (child.type == 'rect'){
-                let ox = child.x;
-                let oy = child.y;
-
-                left = Math.min(left, child.x);
-                right = Math.max(right, child.x + child.width);
-                up = Math.min(up, child.y);
-                bottom = Math.min(bottom, child.y+child.height);
-            }
-        }
-        return {left,right,up,bottom};
-    }
-
-    alignLeftAndTop(){
-        let size = this.getSize();
-        this.moveTo(size.left, size.top);
-    }
-
-    addSVGLine(rect1, rect2){
-        let line = this.toSVGLine();
-        line.start = rect1;
-        line.end = rect2;
-        this.allSVGObjects.push(line);
-    }
-
-    toSVGRect(ref){
-        if (this.svgMap[ref]){
-            return this.svgMap[ref];
-        }
-        let obj = {t:'r',x:this.x, y:this.y, w:0,h:0, refId:ref, id:this.getSVGId()};
-        this.svgMap[ref] = obj;
-        return obj;
-    }
-
-    getSVGId(){
-        return 'svg_'+this.id+'_'+this.allSVGObjects.length+1
-    }
-
-    toSVGLine(){
-        return {t:'l', x1:0, y1:0, x2:0,y1:0, id:this.getSVGId()};
-    }
-
-    toSVGText(text){
-        return {t:'t',x:this.x, y:this.y, text:text, id:this.getSVGId()}
-    }
-
-    draw(){
-        for(let element of this.elements){
-            if (element.type == 'rect'){
-                this.svg.rect(element.x,element.y,element.w,element.h);
-            }else if (child.type == 'line'){
-                this.svg.line(element.x1,element.y1,element.x2,element.y2);
-            }else if (child.type == 'text'){
-                this.svg.text(element.x,element.y,element.text);
-            }
-        }
-    }
-}
-
-class Sharep{
-    moveTo(){
-
-    }
-}
-
-class SVG {
-    constructor(selector){
-        let svg = document.createElement("svg");
-        svg.width = '600';
-        svg.height = '800';
-        selector.appendChild(svg)
-        this.svg = svg;
-    }
-    rect(x,y,w,h){
-        let rect = document.createElement("rect");
-        rect.x = x;
-        rect.y = y;
-        rect.w = w;
-        rect.h = h;
-        this.svg.appendChild(rect);
-        return rect;
-    }
-
-    line(x1,y1,x2,y2){
-        let line = document.createElement("line");
-        line.x1 = x1;
-        line.y1 = y1;
-        line.x2 = x2;
-        line.y2 = y2;
-    
-        this.svg.appendChild(line);
-        return line;
-    }
-
-    text(x,y, txt){
-        let t = document.createElement("text");
-        t.x = x;
-        t.y = y;
-        t.text = txt;
-        
-        this.svg.appendChild(t);
-        return t;
-    }
-
-/**
- * 
-    <rect stroke="#000000" id="svg_9" height="110.00001" width="217.00001" y="214" x="425" stroke-width="0" fill="none"/>
-  <rect stroke="#000" fill="#fff" x="113" y="214" width="162.99998" height="104" id="svg_1"/>
-  <text fill="#000000" stroke="#000" x="198" y="270" id="svg_2" stroke-width="0" font-size="24" font-family="Noto Sans JP" text-anchor="start" xml:space="preserve">text</text>
-  <rect fill="#000000" stroke="#000" stroke-width="0" x="564" y="470" width="2" height="1" id="svg_5"/>
-  <rect id="svg_7" height="0" width="2" y="534" x="1033" stroke="#000" fill="#fff"/>
-  <line id="svg_12" y2="266" x2="386" y1="266" x1="276" stroke="#000" fill="none"/>
-  <rect stroke="#000" fill="#fff" x="303" y="394" width="162.99998" height="104" id="svg_13"/>
-  <rect stroke="#000" fill="#fff" x="386" y="211" width="162.99998" height="104" id="svg_14"/>
-  <line id="svg_15" y2="388" x2="382" y1="267" x1="278" stroke="#000" fill="none"/>
- </g>
- */
-}
 
 class OMPlan2{
 
@@ -1444,6 +1414,11 @@ class OMPlan2{
         this.Y_INIT = 50;
         this.Y_ADDING = 360 - 50;
         this.Y_CLIENT = 140;
+        this.X_VIEW_CLIENT = 320;
+        this.Y_VIEW_CLIENT = 260;
+        this.rightMap = {};
+        this.toMap = {};
+        this.orderitemDependecyInstances = [];
     }
 
     getOrderName(){
@@ -1462,9 +1437,10 @@ class OMPlan2{
     }
 
     setAllDependencys(orchestrationItems){
-        let toMap = {};
+        this.toMap = {};
         for (let k of orchestrationItems){
-            toMap[k.Id] = k;
+            this.toMap[k.Id] = k;
+            k.deps = [];
             this.setDeps(k, orchestrationItems);
         }
     }
@@ -1478,6 +1454,13 @@ class OMPlan2{
                     item.deps.push(dependencyItem.Id);
                 }else{
                     item.deps = [dependencyItem.Id];
+                }
+            }
+        }
+        if (this.orderitemDependecyInstances?.length){
+            for (let titem of this.orderitemDependecyInstances){
+                if (titem.vlocity_cmt__DependsOnItemId__c == item.Id && item.deps.indexOf(titem.vlocity_cmt__OrchestrationItemId__c) == -1){
+                    item.deps.push(titem.vlocity_cmt__OrchestrationItemId__c);
                 }
             }
         }
@@ -1498,7 +1481,7 @@ class OMPlan2{
 
         this.addHoverControl()
         this.addZoomControl();
-
+        this.addClickContrl();
     }
 
     addHoverControl(){
@@ -1538,12 +1521,13 @@ class OMPlan2{
                 return;
             }
             e.preventDefault();
+            // /console.log('deltaY='+e.deltaY);
             var w = viewBox.w;
             var h = viewBox.h;
             var mx = e.offsetX;//mouse x  
             var my = e.offsetY;    
-            var dw = w*Math.sign(e.deltaY)*0.05;
-            var dh = h*Math.sign(e.deltaY)*0.05;
+            var dw = w*Math.sign(e.deltaY)*0.05*-1;
+            var dh = h*Math.sign(e.deltaY)*0.05*-1;
             var dx = dw*mx/svgSize.w;
             var dy = dh*my/svgSize.h;
             viewBox = {x:viewBox.x+dx,y:viewBox.y+dy,w:viewBox.w-dw,h:viewBox.h-dh};
@@ -1584,6 +1568,16 @@ class OMPlan2{
         }
     }
 
+    addClickContrl(){
+        $('#' + this.id+ ' g[vlocity_cmt-xomPlanView_xomPlanView].planitem').on('dblclick', (event)=>{
+            let id = this.getIdByG(event.currentTarget);
+            if (id){
+                this.master.query(id);
+            }
+            event.stopPropagation();
+        })
+    }
+
    
 
     setLeft(orchestrationItems){
@@ -1612,17 +1606,50 @@ class OMPlan2{
             let swimlaneLeftCount = {};
             
             swimlane.items.sort((a1, b1)=>{
-                return b1.left - a1.left;
+                if (b1.left != a1.left){
+                    return b1.left - a1.left;
+                }
+                let bDeps = b1.deps.map(dep=>{
+                    return this.toMap[dep];
+                }).filter(e => e.swimlane == b1.swimlane);
+                let aDeps = a1.deps.map(dep=>{
+                    return this.toMap[dep];
+                }).filter(e => e.swimlane == a1.swimlane);
+                return bDeps.length - aDeps.length;
             })
+
+            let topMap = {};
             for (let j = 0; j<swimlane.items.length; j++){
                 let item = swimlane.items[j];
+
+                let avgRightTop = 0;
+                if (item.deps.length){
+                   
+                    let sameSwimlanceItems = item.deps.map(dep=>{
+                        return this.toMap[dep];
+                    }).filter(e => e.swimlane == swimlane);
+                    if (sameSwimlanceItems.length){
+                        let rightTops = sameSwimlanceItems.map(e => e.top);
+                        avgRightTop = Math.floor(rightTops.reduce((sum, currentValue)=>sum+currentValue, 0) / rightTops.length);
+                    }
+                }
+
+                if (!topMap[item.left+'#'+avgRightTop]){
+                    item.top = avgRightTop;
+                }else {
+                    avgRightTop++;
+                    while(topMap[item.left+'#'+avgRightTop]){
+                        avgRightTop++
+                    }
+                    item.top = avgRightTop;
+                }
                 if (!swimlaneLeftCount[item.left]){
-                    swimlaneLeftCount[item.left] = 1
-                    item.top = 0;
+                    swimlaneLeftCount[item.left] = 1;
                 }else{
                     swimlaneLeftCount[item.left]++;
-                    item.top++;
                 }
+                topMap[item.left+'#'+item.top]=true;
+
 
                 item.adjustTop = 0;
                 for (let k=0; k< i; k++){
@@ -1655,7 +1682,6 @@ class OMPlan2{
                     y:0,
                     w:0,
                     h:0,
-                    index:swimlanerMap.swimlanes.length,
                     planDefId: record.vlocity_cmt__OrchestrationPlanDefinitionId__c,
                     name:this.getOrchestrationPlanDefinitions(record.vlocity_cmt__OrchestrationPlanDefinitionId__c),
                     items:[record]
@@ -1669,7 +1695,20 @@ class OMPlan2{
             swimlanerMap.columns < swimlane.columns && (swimlanerMap.columns = swimlane.columns);
         }
         swimlanerMap.columns++;
+
+
+        swimlanerMap.swimlanes.sort((s1, s2)=>{
+            let leftWight1 = s1.items.map(e=>e.left||0).reduce((sum, curr)=>sum+curr, 0)/s1.items.length;
+            let leftWight2 = s2.items.map(e=>e.left||0).reduce((sum, curr)=>sum+curr, 0)/s2.items.length;
+            return leftWight1 - leftWight2;
+        })
+
+        swimlanerMap.swimlanes.forEach((e, index) => {
+            e.index = index;
+        })
+
         this.setTop(swimlanerMap);
+
 
         for (let item of allRecords){
             item.x = this.X_INIT + this.X_ADDING * item.left;
@@ -1761,7 +1800,7 @@ class OMPlan2{
         //    this.createPlanUI(item, orchestrationItems)
         // }
 
-        return [...this.simlaneContents, ...this.svgItems, ...this.lines].join('')
+        return [...this.simlaneContents, ...this.lines, ...this.svgItems].join('')
     }
 
 
@@ -1827,11 +1866,11 @@ class OMPlan2{
         // r && (left = 370 * (t.columns - e. left - 1) + this.X_INIT);
 
         let str = `<g aria-haspopup="true" aria-controls="menu1" transform="translate(${planItem.x},${planItem.y})" class="planitem" vlocity_cmt-xomPlanView_xomPlanView="">
-			<foreignObject class="item-content id-${planItem.id}" width="320" height="260"
+			<foreignObject class="item-content id-${planItem.id}" width="${this.X_VIEW_CLIENT}" height="${this.Y_VIEW_CLIENT}"
 				vlocity_cmt-xomPlanView_xomPlanView="">
 				<div tabindex="0" aria-label="${planItem.label}, ${planItem.type}" role="presentation" class="item-content-inner item-border item-content-inner-nojeopardy ${planItem.status}" vlocity_cmt-xomplanview_xomplanview="">
 					<div class="item-name " vlocity_cmt-xomplanview_xomplanview="">
-						<div class="item-header-name" vlocity_cmt-xomplanview_xomplanview="">${planItem.label}</div>
+						<div class="item-header-name" vlocity_cmt-xomplanview_xomplanview="" title="${planItem.label}">${planItem.label}</div>
 						<div class="item-menu-icon" tabindex="0" vlocity_cmt-xomplanview_xomplanview="" style="pointer-events: visible;">
                             <svg width="20" height="20" aria-label="Show more actions" vlocity_cmt-xomPlanView_xomPlanView="">
 								<use fill="#181818" xlink:href="#httpshere2serveuatdvlocitycmtsandboxvfforcecomsldsiconsutilityspritesvgsymbolssvg_threedots" vlocity_cmt-xomPlanView_xomPlanView=""></use>
@@ -1869,7 +1908,9 @@ class OMPlan2{
         }
         let m = {x: sourcePos.x + this.X_CLIENT, y: sourcePos.y + this.Y_CLIENT / 2};
         let t = {x: targetPos.x, y: targetPos.y + this.Y_CLIENT / 2};
-        let path = `M${m.x},${m.y}L${m.x + (t.x - m.x)/2},${m.y}L${t.x - (t.x - m.x)/2},${t.y}L${t.x},${t.y}`;
+        let p1 = {x:m.x+(this.X_ADDING - this.X_VIEW_CLIENT)/2, y:m.y}//{x: m.x + (t.x - m.x)/2, y:m.y};
+        let p2 = {x: m.x+(this.X_ADDING - this.X_VIEW_CLIENT)/2, y:t.y};
+        let path = `M${m.x},${m.y}L${p1.x},${p1.y}L${p2.x},${p2.y}L${t.x},${t.y}`;
 
         return `<path class="line id-${planItema.Id} id-${planItemb.Id}" d="${path}" vlocity_cmt-xomPlanView_xomPlanView=""></path>`
     }
@@ -1910,6 +1951,11 @@ class OMPlanDefine extends OMPlan2{
             }
         }
         return this.orchestrationPlanDefinitionMap[id] || '';
+    }
+
+    createSwimlaneItem(swimlane){
+        swimlane.name = swimlane.name + `(${swimlane.items.length})`;
+        return super.createSwimlaneItem(swimlane);
     }
 
 }
