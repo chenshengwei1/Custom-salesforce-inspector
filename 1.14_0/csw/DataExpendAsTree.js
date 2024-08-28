@@ -14,6 +14,7 @@ export class DataExpendAsTree extends Notifiable{
         super();
         this.tree = dateTree;
         this.isActived = false;
+        this.loadMoreMap = {};
     }
     active(){
         if (this.isActived){
@@ -37,41 +38,88 @@ export class DataExpendAsTree extends Notifiable{
         });
     }
 
+
     toHtml(sobjectDescribe, data){
         sobjectDescribe = sobjectDescribe||this.sobjectDescribe;
         data = data||this.data;
         if (!sobjectDescribe){
             return '';
         }
-
+        
         let listData = sobjectDescribe.fields.map(e=>{
             return {name:e.name,label:e.label, value:data[e.name],type:e.type, referenceTo:e.referenceTo||[]}
         }).sort((a, b)=>{
             return a.name.localeCompare(b.name)
         })
-        return `<div><div class="block-head">${sobjectDescribe.name}</div>
+
+        let relationshipPartUUID = this.getUuid();
+        this.loadMoreMap[relationshipPartUUID] = {
+            sobjectDescribe, data
+        };
+        return `<div class="object-section">
+            <div class="block-head">${sobjectDescribe.name}</div>
             ${listData.map(field=>{
                 if (field.type=="reference"){
                     let uuid = this.getUuid();
                     field.uuid = uuid;
-                    return `<div class="field-item ${field.value?'':'null-value'} ${field.name=='Id'?'requirment-item':''}" field-name="${field.name}" field-label="${field.label}" name="${sobjectDescribe.name+'.'+field.name}">
-                        <span class="field-item-name"> ${field.name}</span>
-                        <span class="field-item-label">${field.label}</span>:
-                        <span class="reference field-item-value" name="${sobjectDescribe.name+'.'+field.name}" value="${field.value}">${field.value || '&lt;empty&gt;'}</span>
-                        <div class="childblock sobject" id="${uuid}" data-sobjectname="${field.referenceTo.join(',')}" data-value="${field.value}"></div>
-                    </div>`
+                    let referObjects = field.referenceTo.join(',');
+                    if (field.referenceTo.length>1 && field.value){
+                        referObjects = this.tree.syncGetSObjectNameById(field.value);
+                    }
+                    return `<div class="field-item ${field.value?'':'null-value'} ${field.name=='Id'?'requirment-item':''} field-item-line" field-name="${field.name}" field-label="${field.label}" name="${sobjectDescribe.name+'.'+field.name}">
+                                <span class="field-item-name"> ${field.name}</span>
+                                <span class="field-item-label">${field.label}</span>:
+                                <span class="reference field-item-value" name="${sobjectDescribe.name+'.'+field.name}" value="${field.value}">${field.value || '&lt;empty&gt;'}</span>
+                                <span class="field-item-refenece-type">${referObjects}</span>
+                                <div class="childblock sobject" id="${uuid}" data-sobjectname="${referObjects}" data-value="${field.value}"></div>
+                            </div>`
                 }
-                return `<div class="field-item ${field.value?'':'null-value'}" name="${sobjectDescribe.name+'.'+field.name}" field-name="${field.name}" field-label="${field.label}">
+                return `<div class="field-item ${field.value?'':'null-value'} field-item-line" name="${sobjectDescribe.name+'.'+field.name}" field-name="${field.name}" field-label="${field.label}">
                     <span class="field-item-name">${field.name}</span>
                     <span class="field-item-label">${field.label}</span>:
                     <span class="field-item-value">${field.value}</span>
                     </div>`
             }).join('')}
+
             <div class="field-item field-hor requirment-item"></div>
+            <div class="field-item child-relation-ship-section" id="${relationshipPartUUID}">
+                <span class="field-item-more-link" data-uid="${relationshipPartUUID}">More RelationShips</span>
+            </div>
+        </div>`
+    }
+
+    filterdByNameAndValue(searchKey){
+        if (!searchKey){
+            $('.object-section .field-item.field-item-line').show();
+        }else{
+            $('.object-section .field-item.field-item-line').each((index, ele)=>{
+                let name = $(ele).find('.field-item-name').text();
+                let label = $(ele).find('.field-item-label').text();
+                let value = $(ele).find('.field-item-value').text();
+                if (name.toLocaleLowerCase().indexOf(searchKey.toLocaleLowerCase()) != -1
+                    || label.toLocaleLowerCase().indexOf(searchKey.toLocaleLowerCase()) != -1
+                    || value.toLocaleLowerCase().indexOf(searchKey.toLocaleLowerCase()) != -1){
+                        $(ele).show();
+                }else{
+                    $(ele).hide();
+                }
+            });
+        }
+    }
+
+    loadMoreHandler(id){
+        let details = this.loadMoreMap[id];
+        if (!details){
+            console.error('some thing details miss in '+id);
+            return;
+        }
+        let sobjectDescribe = details.sobjectDescribe;
+        let data = details.data;
+        $('#'+id).html(`
             ${sobjectDescribe.childRelationships.map(field=>{
                 let uuid = this.getUuid();
                 field.uuid = uuid;
-                return `<div class="field-item" name="${sobjectDescribe.name+'.'+field.childSObject+'.'+field.field}">
+                return `<div class="field-item field-item-line" name="${sobjectDescribe.name+'.'+field.childSObject+'.'+field.field}">
                     <span class="field-item-name ${this.isQueryable(field.childSObject)?'queryable':''}">${field.childSObject}</span>
                     <span class="field-item-label ${this.isQueryable(field.childSObject)?'queryable':''}">${field.relationshipName}</span>:
                     <span class="relationship field-item-attr" name="${field.childSObject+'.'+field.field}" value="${field.field}">
@@ -80,7 +128,8 @@ export class DataExpendAsTree extends Notifiable{
                     <div class="childblock" id="${uuid}" data-reference="${data.Id}" data-sobjectname="${field.childSObject}"></div>
                 </div>`
             }).join('')}
-        </div>`
+        `);
+        delete this.loadMoreMap[id];
     }
 
     
@@ -129,6 +178,8 @@ export class DataExpendAsTree extends Notifiable{
                 $(`#${htmlId} [name="${element}"]`).show();
             }
         });
+
+        this.filterdByNameAndValue($('#fieldssearch').val());
     }
 
     showAll(htmlId){
@@ -204,27 +255,25 @@ export class DataExpendAsTree extends Notifiable{
             Chang Event: <input class="" id="inchangeeventsearch" type="checkbox" value="N" ></input>
             Custom: <input class="" checked id="incustomsearch" type="checkbox" value="Y" ></input>
             No Null Field: <input class="" checked id="noNullField" type="checkbox" value="Y" ></input><br/>
-            Show All: <input class="" id="showAllFields" type="checkbox" value="Y" ></input>
+            Show All: <input class="" id="showAllFields" type="checkbox" value="Y" checked></input>
             Show Name Only: <input class="" id="showNameOnly" type="checkbox" value="Y" ></input>
         </p>
         <p>
-            Fields Search: <input class="search hide" id="fieldssearch" type="input" value="" autocomplete="off"></input>
+            Fields Name/Value Search: <input class="search" id="fieldssearch" type="input" value="" autocomplete="off"></input>
         </p>
         <p>
-            Fields Value: <input class="search" id="fieldvalyuesearch" type="input" value=""></input><br/>
-            Order Name: <input class="search" id="ordernamesearch" type="input" value=""></input><br/>
-            Order Number: <input class="search" id="ordernumbersearch" type="input" value=""></input>
+            Search filterd: <input class="search" id="fieldvalyuesearch" type="input" value="" autocomplete="off"></input><br/>
         </p>
         <p>
             <label>History Records:</label>
-            <select name="select-data" id="historysearch">
+            <select name="select-data" id="historysearch" class="hide">
                 <option value="">Please select object</option>
             </select>
         </p>
         <p>
             <button class="tablinks" name="SearchSObject" id="SearchSObject">Search</button>
             <button class="tablinks" name="filterBlankValue" id="filterBlankValue">Filter Blank Value</button></br>
-            Use Tooling API: <input class="" id="useToolingAPICheck" type="checkbox" value="N"></input>
+            Use Tooling API: <input class="hide" id="useToolingAPICheck" type="checkbox" value="N"></input>
 
             <button class="" id="syncSessionBtn" >Sync Session</button>
         </p>
@@ -241,13 +290,14 @@ export class DataExpendAsTree extends Notifiable{
         this.addTreeListening();
     }
 
-    async parser(id, ordernumber, ordername){
-        let sobjectname = 'Order';
+    async parser(id){
+        let ordernumber='';
+        let ordername = '';
         if (id){
-            if (/^\d{8}$/.test(id)){
+            if (/^\d{8}|$\d{10}/.test(id)){
                 ordernumber = id;
                 id='';
-            }else if (/^\w{4}\d{8}$/ig.test(id)){
+            }else if (/^\w{4,6}\d{8}$/ig.test(id)){
                 ordername = id;
                 id='';
             }else if (!/^[\w\d]{15,18}$/.test(id)){
@@ -261,21 +311,20 @@ export class DataExpendAsTree extends Notifiable{
             }
         }
         
-        if (ordernumber || ordername){
-            $('#objectsearch').val('Order');
-            sobjectname = 'Order';
-        }
-        else{
-            ordernumber='';
-            ordername='';
-            sobjectname = await this.tree.getSObjectNameById(id);
-            $('#ordersearch').val(sobjectname);
-        }
+        let sobjectname = await this.tree.getSObjectNameById(id);
+        $('#ordersearch').val(sobjectname);
         return {sobjectname, id}
     }
 
-    addTreeListening(){
+    async getOrderId(ordernumber, ordername){
+        let input = {};
+        input.OrderNumber = ordernumber;
+        input.Name = ordername;
+        let result = await this.tree.getRecordsByFields('Order', ['Id'], 0, input, selected);
+        this.mainTable.dataList = result.results ||[];
+    }
 
+    addTreeListening(){
         let sfHosts = this.tree.sfConn.getSfHosts();
         let sessions = this.tree.sfConn.getAllSessions(sfHosts[this.tree.sfConn.instanceHostname]);
         updateSelectUI('select-sfhost', sfHosts.map(e=>{return {name:e,label:e}}));
@@ -300,9 +349,7 @@ export class DataExpendAsTree extends Notifiable{
 
       $('#SearchSObject').on('click',async ()=>{
           let id = $('#fieldvalyuesearch').val().trim();
-          let ordername = $('#ordernamesearch').val().trim();
-          let ordernumber = $('#ordernumbersearch').val().trim();
-          let {sobjectname} = await this.parser(id, ordernumber, ordername);
+          let {sobjectname} = await this.parser(id);
           
           if (id){
               this.doUpdate(sobjectname, id);
@@ -410,8 +457,19 @@ export class DataExpendAsTree extends Notifiable{
             }
         })
 
+        $('#objsearchresult').on('click','.field-item-more-link',(event)=>{
+            let dataId = $(event.target).attr('data-uid');
+            this.loadMoreHandler(dataId);
+            
+        })
 
-      
+        $('#fieldssearch').on('change', (event)=>{
+            this.filterdByNameAndValue($('#fieldssearch').val());
+        })
+        $('#fieldssearch').on('keyup', (event)=>{
+            this.filterdByNameAndValue($('#fieldssearch').val());
+        })
+        
     }
 
     doUpdate(sobject, id, htmlId){

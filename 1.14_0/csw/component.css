@@ -21,6 +21,7 @@
 	flex-flow: wrap;
 	background: var(--bg);
 	font-family: 'Titillium Web', sans-serif;
+  background-color: transparent;
 }
 .btn-container .btn {
 	position: relative;
@@ -225,7 +226,7 @@ table.table {
   }
 
   tbody>tr.selected{
-    background-color: #00d061;
+    background-color: #c1d2c9;
   }
 
   @media screen and (max-width: 580px) {

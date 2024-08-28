@@ -19,6 +19,7 @@ export class OrderSVGFlow{
         <style>
             .order-flow-siber {
                 width: 600px;
+                max-height : 80vh;
                 position: fixed;
                 right: 10px;
                 top: 100px;
@@ -1033,6 +1034,18 @@ export class OrderSVGFlow{
             console.dir(records);
             let planitem = records[0];
 
+            let eventObjectToExpress = (condObj)=>{
+                if (condObj.type == "SIMPLE"){
+                    return condObj['left-side-type']+'.'+condObj['left-side'] + ''+condObj['op'] +condObj['right-side'];
+                }
+                if (condObj.type == "OR" || condObj.type == "AND"){
+                    return condObj.singleconditions.map(e=>{
+                        return eventObjectToExpress(e);
+                    }).join(' or ');
+                }
+                return JSON.stringify(condObj);
+            }
+
             let toEventConditionExpress = (val)=>{
                 if (!val){
                     return '';
@@ -1040,9 +1053,7 @@ export class OrderSVGFlow{
 
                 try{
                     let condObj = JSON.parse(val);
-                    if (condObj.type == "SIMPLE"){
-                        return condObj['left-side-type']+'.'+condObj['left-side'] + ''+condObj['op'] +condObj['right-side'];
-                    }
+                    return eventObjectToExpress(condObj);
                 }catch(e){
 
                 }

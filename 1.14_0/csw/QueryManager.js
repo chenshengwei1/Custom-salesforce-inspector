@@ -523,6 +523,27 @@ export class QueryMananger{
         return objectTypes[0];
     }
 
+    syncGetSObjectById(recordId){
+        if (!recordId || recordId === 0){
+            return {objectTypes:[]}
+        }
+
+        let globalDescribe = this.describeInfo?.sobjectAllDescribes?.data?.global?.globalDescribe;
+        let objectTypes;
+        if (globalDescribe) {
+          let keyPrefix = recordId.substring(0, 3);
+          objectTypes = globalDescribe.sobjects.filter(sobject => sobject.keyPrefix == keyPrefix).map(sobject => sobject.name);
+        } else {
+          objectTypes = [];
+        }
+        return {objectTypes, recordId};
+    }
+
+    syncGetSObjectNameById(recordId){
+        let {objectTypes} = this.syncGetSObjectById(recordId);
+        return objectTypes.length?objectTypes[0]:'';
+    }
+
     isVald(exfField, sobjectDescribe){
         if (exfField.indexOf('.') == -1){
             let matchField = sobjectDescribe.fields.find(e=>e.name.toLowerCase()==exfField.toLowerCase());
@@ -545,6 +566,16 @@ export class QueryMananger{
     }
     
 
+    /**
+     * 
+     * @param {String} sobjectName ig: Order
+     * @param {*} fields [{Name}]
+     * @param {*} offset Number ig: 0
+     * @param {*} condition 
+     * @param {*} extfields 
+     * @param {*} pageLength 
+     * @returns 
+     */
     async getRecordsByFields(sobjectName, fields, offset, condition, extfields, pageLength){
         offset = offset ||0;
         let fieldName;
