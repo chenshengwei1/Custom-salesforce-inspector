@@ -176,20 +176,26 @@ body{
 
 
   span.reference {
-    color: -webkit-link;
+    color: #c470be;
     cursor: pointer;
     text-decoration: underline;
+}
 
-
+.field-item-more-link{
+  color: #c470be;
+  padding: 2px 1px 1px 16px;
+  cursor: pointer;
+  text-decoration: underline;
 }
 span.relationship{
-  color: -webkit-link;
+  color: #c470be;
   cursor: pointer;
   text-decoration: underline;
 }
 
 .childblock{
     margin-left: 20px;
+    background-color: black;
 }
 
 .field-item{
@@ -209,12 +215,25 @@ span.relationship{
   display: none;
 }
 
-.field-hor{border: blue;
-  border-style: solid;
-  border-width: 2px;
+.field-hor{
+    border-color: blue;
+    border-style: solid;
+    border-width: 0;
+    border-bottom-width: 2px;
 }
 
-.relationshipname,.field-item-label{
+.field-item.child-relation-ship-section{
+  padding: 0;
+  margin: 0;
+}
+
+.field-item.child-relation-ship-section:hover{
+  background-color: #410e0e;
+}
+
+    
+
+.relationshipname,.field-item-label,.field-item-name{
     font-style: italic;
     font-stretch: semi-expanded;
     color: #c68f59;
@@ -401,7 +420,7 @@ tr th{
 
 .field-value-filter .c-item{
   width: 100%;
-  background-color: #0d0d0d;
+  background-color: #0d0d0d00;
     margin: 5px;
 }
 
@@ -409,6 +428,10 @@ tr th{
   display: flex;
   flex-wrap: wrap;
   width: 50%;
+}
+
+.field-item-refenece-type{
+  color: #8985856b
 }
 
 .btn-delete{
