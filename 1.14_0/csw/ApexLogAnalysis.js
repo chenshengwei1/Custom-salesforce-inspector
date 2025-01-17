@@ -154,11 +154,33 @@ export class ApexLogAnalysis{
             targetElement.scrollIntoView({ behavior: "smooth" });
         })
 
+        $('#logAnalysis-showallsobjectdatatable2').on('click', '.x-form-checkbox', ()=>{
+            this.filterReport2();
+
+            const targetElement = document.querySelector('.x-grid-select');
+            targetElement.scrollIntoView({ behavior: "smooth" });
+        })
+        
+
         $('#logAnalysis-showallsobjectdatatable2').on('click', 'tr.x-grid-row-over', (event)=>{
             $('.x-grid-select').removeClass('x-grid-select');
             $(event.target).addClass('x-grid-select');
         })
         
+    }
+
+    
+
+    isDebugonly(record){
+        return !this.isDebugOnlyChecked || (this.isDebugOnlyChecked && record.event == 'USER_DEBUG');
+    }
+
+    isFilterDetails(record){
+        return !this.isFilterDetailChecked || (this.isFilterDetailChecked && record.details.indexOf(this.filterDetailsWord) != -1);
+    }
+
+    filterByExecuteable(record){
+        return !this.isExecuteableChecked;
     }
 
     filter_log_file(content, key){
@@ -439,21 +461,40 @@ export class ApexLogAnalysis{
     }
 
     filterReport2(){
-        let text = $('#textfield-1450-inputEl').val();
+        let text = $('#textfield-1450-inputEl').val().toLocaleLowerCase();
+        this.isDebugOnlyChecked = $('#checkboxfield-debugonly-input').checked();
+        this.isFilterDetailChecked = $('#checkboxfield-filter-input').checked();
+        if (this.isFilterDetailChecked){
+            this.filterDetailsWord = $('#textfield-1450-inputEl').val().toLocaleLowerCase();
+        }else{
+            $('#textfield-1450-inputEl').val('');
+        }
+        this.isExecuteableChecked = $('#checkboxfield-executable-input').checked();
 
         if (!text){
             $('#gridview-1440 tr.x-grid-row-over').show();
             return;
         }
         $('#gridview-1440 tr.x-grid-row-over').each((index, ele)=>{
-            let val = $(ele).find('td.x-grid-cell').text();
-            if (val.indexOf(text) == -1){
-                $(ele).hide();
-            }else{
+            let val = $(ele).find('td.x-grid-cell').text().toLocaleLowerCase();
+            let record = {details: val, event:''};
+            if (this.isDebugonly(record) || this.isFilterDetails(record) || this.filterByExecuteable(record)){
                 $(ele).show();
+            }else{
+                $(ele).hide();
             }
         })
 
+    }
+
+    filterRecords2(records){
+        this.isDebugOnlyChecked = $('#checkboxfield-debugonly-input').checked();
+        this.isFilterDetailChecked = $('#checkboxfield-filter-input').checked();
+        this.filterDetailsWord = $('#textfield-1450-inputEl').val();
+        this.isExecuteableChecked = $('#checkboxfield-executable-input').checked();
+        return records.filter(e=>{
+            return this.isDebugonly(e)&&this.isFilterDetails(e)&&this.filterByExecuteable(e)
+        })
     }
 
 
@@ -666,16 +707,16 @@ export class ApexLogAnalysis{
                         <label id="checkboxfield-1442-boxLabelEl" class="x-form-cb-label x-form-cb-label-after" for="checkboxfield-1442-inputEl">This Frame</label>
 
                         <label id="checkboxfield-1444-labelEl" for="checkboxfield-1444-inputEl" class="x-form-item-label x-form-item-label-left" style="width:100px;margin-right:5px;"></label>
-                        <input type="checkbox" id="checkboxfield-1444-inputEl" class="x-form-field x-form-checkbox" autocomplete="off" hidefocus="true" aria-invalid="false" data-errorqtip=""/>
-                        <label id="checkboxfield-1444-boxLabelEl" class="x-form-cb-label x-form-cb-label-after" for="checkboxfield-1444-inputEl">Executable</label>
+                        <input type="checkbox" id="checkboxfield-executable-input" class="x-form-field x-form-checkbox" autocomplete="off" hidefocus="true" aria-invalid="false" data-errorqtip=""/>
+                        <label id="checkboxfield-executable" class="x-form-cb-label x-form-cb-label-after" for="checkboxfield-1444-inputEl">Executable</label>
 
                         <label id="checkboxfield-1446-labelEl" for="checkboxfield-1446-inputEl" class="x-form-item-label x-form-item-label-left" style="width:100px;margin-right:5px;"></label>
-                        <input type="checkbox" id="checkboxfield-1446-inputEl" class="x-form-field x-form-checkbox" autocomplete="off" hidefocus="true" aria-invalid="false" data-errorqtip=""/>
-                        <label id="checkboxfield-1446-boxLabelEl" class="x-form-cb-label x-form-cb-label-after" for="checkboxfield-1446-inputEl">Debug Only</label>
+                        <input type="checkbox" id="checkboxfield-debugonly-input" class="x-form-field x-form-checkbox" autocomplete="off" hidefocus="true" aria-invalid="false" data-errorqtip=""/>
+                        <label id="checkboxfield-debugonly" class="x-form-cb-label x-form-cb-label-after" for="checkboxfield-1446-inputEl">Debug Only</label>
 
                         <label id="checkboxfield-1448-labelEl" for="checkboxfield-1448-inputEl" class="x-form-item-label x-form-item-label-left" style="width:100px;margin-right:5px;"></label>
-                        <input type="checkbox" id="checkboxfield-1448-inputEl" class="x-form-field x-form-checkbox" autocomplete="off" hidefocus="true" aria-invalid="false" data-errorqtip="">
-                        <label id="checkboxfield-1448-boxLabelEl" class="x-form-cb-label x-form-cb-label-after" for="checkboxfield-1448-inputEl">Filter</label>
+                        <input type="checkbox" id="checkboxfield-filter-input" class="x-form-field x-form-checkbox" autocomplete="off" hidefocus="true" aria-invalid="false" data-errorqtip="">
+                        <label id="checkboxfield-filter" class="x-form-cb-label x-form-cb-label-after" for="checkboxfield-1448-inputEl">Filter</label>
 
                         <input id="textfield-1450-inputEl" type="text" size="1" name="textfield-1450-inputEl" placeholder="Click here to filter the log" style="width:100%;" class="x-form-field x-form-empty-field x-form-text" autocomplete="off" aria-invalid="false" data-errorqtip="">
 

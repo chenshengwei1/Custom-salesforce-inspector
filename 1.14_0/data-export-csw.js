@@ -17,6 +17,8 @@ import {StockBalance} from "./csw/StockBalance.js";
 import {OrderSVGFlow} from "./csw/OrderSVGFlow.js";
 import {ApexLogAnalysis} from "./csw/ApexLogAnalysis.js"
 import {Pentaho} from "./csw/Pentaho.js"
+import {JSONFormat} from "./csw/JsonFormat.js"
+import {LookupTable} from "./csw/LookupTable.js"
 
 
 
@@ -91,6 +93,14 @@ let items = [{
     name:  'pentaho',
     label: 'Pentaho',
     class: Pentaho
+},{
+    name:  'jsonformat',
+    label: 'JSONFormat',
+    class: JSONFormat
+},{
+    name:  'lookupTable',
+    label: 'LookupTable',
+    class: LookupTable
 }];
 
 
@@ -319,6 +329,18 @@ $('#toTop').on('click', ()=>{
     setInterval(()=>{
         updateMessageBar();
     }, 500);
+
+    $('#result-table').on('click', 'tr', (e)=>{
+        let tr = e.target;
+        if (!$(tr).is('tr')){
+            tr=$(tr).parent('tr');
+        }
+        if ($(tr).is('.selected')){
+            return;
+        }
+        $('#result-table .selected').removeClass('selected');
+        $(tr).addClass('selected');
+    })
 }
 
 window.filterRecords = function(records){

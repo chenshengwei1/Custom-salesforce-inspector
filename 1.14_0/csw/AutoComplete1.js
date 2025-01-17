@@ -190,18 +190,19 @@ export class AutoComplete1{
                         matchItems.push(valueArr[i]);
                     }
                 }
+                matchItems = matchItems.sort((a, b)=>{
+                    let v1=this.itemProvider.value(a);
+                    let v2=this.itemProvider.value(b);
+                    return reg.exec(v1)?.index - reg.exec(v2)?.index;
+                });
             }
-            matchItems = matchItems.sort((a, b)=>{
-                let v1=this.itemProvider.value(a);
-                let v2=this.itemProvider.value(b);
-                return reg.exec(v1)?.index - reg.exec(v2)?.index;
-            });
             for(var i=0;i<matchItems.length;i++){
                 let val = this.itemProvider.value(matchItems[i]);
                 var div = document.createElement("div");
                 div.className="auto_onmouseout autocompleteitem";
                 div.title=val;
                 div.seq = val;
+                div.divindex = div_index;
                 div.setAttribute('seq',val);
                 div.innerHTML=this.itemProvider.label(matchItems[i], val.replace(reg,"<strong>$1</strong>"));//搜索到的字符粗体显示
                 this.autoObj.appendChild(div);
@@ -230,8 +231,11 @@ export class AutoComplete1{
         })
 
         $('#'+this.autoElementId).on('mouseover', '.autocompleteitem',(e)=>{
-            console.log('mouseover seq = ', e.target.seq);
-            this.autoOnmouseover(e.target, div_index);
+            //console.log('mouseover seq = ', e.target.seq);
+            //console.log('mouseover div_index = ', e.target.divindex);
+            if (e.target.divindex){
+                //this.autoOnmouseover(e.target, e.target.divindex);
+            }
         })
     }
 

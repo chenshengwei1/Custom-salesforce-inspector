@@ -77,7 +77,7 @@ export class DataExpendAsTree extends Notifiable{
                 return `<div class="field-item ${field.value?'':'null-value'} field-item-line" name="${sobjectDescribe.name+'.'+field.name}" field-name="${field.name}" field-label="${field.label}">
                     <span class="field-item-name">${field.name}</span>
                     <span class="field-item-label">${field.label}</span>:
-                    <span class="field-item-value">${field.value}</span>
+                    <span class="field-item-value" value="${field.value}">${field.value}</span>
                     </div>`
             }).join('')}
 
@@ -415,24 +415,17 @@ export class DataExpendAsTree extends Notifiable{
       })
 
 
-        $('#objsearchresult').on('click','.reference', (event)=>{
-            let fieldPath = $(event.target).attr('name');
-            let fieldPaths = fieldPath.split('.');
-            let field = this.tree.dataMap[fieldPaths[0]].sobjectDescribe.fields.find(e=>{
-                return e.name==fieldPaths[1];
-            })
+        $('#objsearchresult').on('click','.reference', async (event)=>{
+            let dataId = $(event.target).attr('value');
+            let sobjectname = await this.tree.getSObjectNameById(dataId);
 
             let refBlockId = $(event.target).parent().children('.childblock').attr('id');
-            if (!field){
-                let reference = $(event.target).parent().children('.childblock').attr('data-sobjectname')
-                field = {referenceTo:[reference]};
-            }
             if ($('#'+refBlockId).css("display")=='none' || !$('#'+refBlockId).is('.loaded')){
                 $('#'+refBlockId).show();
                 if ($('#'+refBlockId).is('.loaded')){
                     return;
                 }
-                this.doUpdate(field.referenceTo[0], $(event.target).attr('value'), refBlockId);
+                this.doUpdate(sobjectname, dataId, refBlockId);
             }else{
                 $('#'+refBlockId).hide();
             }
@@ -469,8 +462,30 @@ export class DataExpendAsTree extends Notifiable{
         $('#fieldssearch').on('keyup', (event)=>{
             this.filterdByNameAndValue($('#fieldssearch').val());
         })
+
+
+        $('#objsearchresult').on('dblclick','.field-item-value',async (event)=>{
+            if (!$(event.target).is('.field-item-value') ||  $(event.target).is('.reference')){
+                return;
+            }
+            let dataId = $(event.target).text().trim();
+            if (/^[\d\w]{18}$/.test(dataId)){
+                let sobjectname = await this.tree.getSObjectNameById(dataId);
+                if (sobjectname){
+                    $(event.target).addClass('reference');
+                    let uuid = this.getUuid();
+                    $(event.target).parent().append(`<div class="childblock sobject" id="${uuid}" data-value="${dataId}"></div>`);
+                    $(event.target).click();
+                }
+            }
+            
+        })
+
+        
         
     }
+
+    
 
     doUpdate(sobject, id, htmlId){
         if (!id){

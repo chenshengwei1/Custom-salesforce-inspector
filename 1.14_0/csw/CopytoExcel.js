@@ -81,7 +81,9 @@ export class CopytoExcel{
                 <br/>
                 <div class="merge-input" id="merge-input"></div>
                 <textarea contenteditable="true" name="" id="copy2excel-sql" placeholder="input your soql here start to query" style="height: 228px;font-size: large;" class="feedback-text feedback-input"></textarea>
-                <textarea readonly name="" id="copy2excel-message" style="height: 228px;font-size: large;" class="feedback-text feedback-input no-border"></textarea>
+                <section>
+                    <textarea readonly name="" id="copy2excel-message" style="height: 228px;font-size: large;" class="feedback-text feedback-input no-border"></textarea>
+                </section>
                 
             </div>
             <div class="copy2excel-view-result tabitem Result">
@@ -198,7 +200,7 @@ export class CopytoExcel{
 
     updateTabBaritem(){
         let html = this.tabMgr.tabs.map((e, index)=>{
-            return `<span class="copy2excel-tab-item${e.activate?' activate':''}" name="${e.name}">${e.name}</span>`
+            return `<span class="copy2excel-tab-item${e.activate?' activate':''}" name="${e.name}" title="${e.soql||''}">${e.label||e.name}</span>`
         }).join('');
         html = html + `<span class="copy2excel-tab-item" name="add">Add</span>`
         $('.copy2excel-tab-container').html(html);
@@ -212,6 +214,18 @@ export class CopytoExcel{
         let soql = $('#copy2excel-sql').val().trim();
         inactivateTab.soql = soql;
         inactivateTab.records = this.records;
+        inactivateTab.label = this.getLabelBySoql(soql);
+    }
+
+    getLabelBySoql(soql){
+        if (soql){
+            let match = /from\s+([\d\w_]+)\b/ig.exec(soql)
+            if (match){
+                let d = new Date();
+                return match[1]+'@'+d.getHours()+':'+d.getMinutes()+''+d.getSeconds();
+            }
+        }
+        return ''
     }
 
     showTab(activateTab){
@@ -220,7 +234,7 @@ export class CopytoExcel{
         }
         $('#copy2excel-sql').val(activateTab.soql||'');
         this.records = activateTab.records || [];
-        this.exampleTable(activateTab.records);
+        this.exampleTable(activateTab.records||[]);
     }
 
     initTabLinsener(){
@@ -256,7 +270,7 @@ export class CopytoExcel{
 
         let tabs = this.getTabsSoql();
         for (let tab of tabs){
-            let newTab = {name:'item-'+this.tabIndex, soql:tab.sql};
+            let newTab = {name:'item-'+this.tabIndex, soql:tab.sql, label: this.getLabelBySoql(tab.sql)};
             this.tabMgr.tabs.push(newTab);
             this.tabIndex++;
         }
@@ -535,6 +549,9 @@ export class CopytoExcel{
     }
 
     toRecordString(r, f){
+        if (!r){
+            return '';
+        }
         if (r[f]){
             return r[f];
         }
@@ -572,6 +589,7 @@ export class CopytoExcel{
         return `
             <table id="copy2excel-datatable" class="table">
                 <thead>
+                    <tr class="row"><th class="cell" colspan="${header.length || 1}"><b>${this.records.length}</b></th></tr>
                     <tr class="row header blue">
                         ${header.map(e=>{
                             return `<th class="field-${e} cell" tabindex="0">${e}

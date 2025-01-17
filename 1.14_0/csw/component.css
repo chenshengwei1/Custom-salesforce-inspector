@@ -392,7 +392,7 @@ table.table {
 
   .checkbox-wrapper .terms-label {
     border: 1px solid #000000;
-    cursor: pointer;
+    cursor: move;
     display: flex;
     align-items: center;
     margin: 0px;
@@ -1035,6 +1035,13 @@ h2#modal-heading-01 {
 	border-width: 0px;
 }
 
+.btn{
+  background: inherit;
+  color: inherit;
+  border-width: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
 
 
 .hide_table{
@@ -1050,6 +1057,11 @@ h2#modal-heading-01 {
   display: unset;
 }
 
+.copy2excel-tab-container
+{
+  display: flex;
+  flex-wrap: wrap;
+}
 .copy2excel-tab-item {
   height: 15px;
   width: 200px;
@@ -1058,11 +1070,8 @@ h2#modal-heading-01 {
   padding: 0 20px;
   cursor: pointer;
   border-radius: 3px;
-  background-color: bisque;
   border-color: bisque;
-
-  --bg: #ffcc00;
-  background-color: var(--bg);
+  background-color: #618fb7;
   color: color-contrast(var(--bg) vs #fff, #000);  /** 基于背景反转颜色 **/
 }
 
@@ -1080,4 +1089,8 @@ h2#modal-heading-01 {
   --bg: rgb(154, 4, 4);
   background: var(--bg);
   color: color-contrast(var(--bg) vs #fff, #000);  /** 基于背景反转颜色 **/
+}
+
+#recordallinfoinfo .record-view-soql{
+  width:30%;
 }

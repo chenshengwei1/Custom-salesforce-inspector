@@ -35,15 +35,21 @@ export class RecordInfo{
         <div class="record-searchresult">
             <div class="totalbar" id="record-notificationmessage"></div>
 
-            <div class="record-view-soql tabitem SOQL">
-                <ul class="ui-module-tab menu-selector" id="menu-selector">
-                    <li id="record-btn-reset">Reset</li>
-                    <li id="record-btn-format" class="js-is-active">Format</li>
-                </ul>
-                <br/>
-                <div class="loader" id="record-loading"></div>
-                <textarea readonly name="" id="record-message" style="height: 228px;font-size: large;" class="feedback-text feedback-input no-border"></textarea>
-                
+            <div class="flex-container">
+                <div class="record-view-soql tabitem SOQL">
+                    <ul class="ui-module-tab menu-selector" id="menu-selector">
+                        <li id="record-btn-reset">Reset</li>
+                        <li id="record-btn-format" class="js-is-active">Format</li>
+                    </ul>
+                    <br/>
+                    <div class="loader" id="record-loading"></div>
+                    <textarea readonly name="" id="record-message" style="height: 228px;font-size: large;" class="feedback-text feedback-input no-border"></textarea>
+                    
+                </div>
+                <div class="record-view-history">
+                    <ul class="history-ul">
+                    </ul>
+                </div>
             </div>
             <input class="search feedback-input " id="record-field-search" type="input" placeholder="input your search key" autocomplete="off"></input>
             <div class="record-view-result tabitem Result">
@@ -85,6 +91,22 @@ export class RecordInfo{
             $('#record-orderid-input').val($(event.target).text());
             $('#record-orderid-input').change();
         })
+
+        $('ul.history-ul').on('click', 'li', (event)=>{
+            let recordId = $(event.target).attr('name');
+            $('.history-ul .selected').removeClass('selected');
+            $(event.target).addClass('selected');
+            $('#record-orderid-input').val(recordId);
+            $('#record-orderid-input').change();
+        })
+
+    }
+
+    addToHistory(recordId, objectName, name){
+        if ($(`ul.history-ul [name="${recordId}"]`).length){
+            return;
+        }
+        $('ul.history-ul').append(`<li name="${recordId}">${objectName} - ${recordId} (${name?name:'-'})</li>`);
     }
 
     applyFieldSearch(){
@@ -121,6 +143,8 @@ export class RecordInfo{
                 console.log('data', data);
                 this.showFields = ['name', 'label', 'type'];
                 this.record = data.results;
+                let nameField = this.sobjectDescribe?.fields?.filter(e=>e.nameField==true).map(e=>e.name);
+                this.addToHistory(recordId, sobjectname, this.record&&nameField&&nameField[0]?this.record[nameField[0]]:'');
                 this.updateNotLoad(data.sobjectDescribe, this.record);
                 this.addMessage('load id end');
             }else{

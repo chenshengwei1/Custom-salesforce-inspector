@@ -2,7 +2,7 @@ import {RenderTable} from "./RenderTable.js";
 import {AutoComplete1} from "./AutoComplete1.js";
 import {PopupRelationMenu} from "./PopupRelationMenu.js";
 import {Tools} from "./Tools.js";
-export class ShowOrderTable{
+export class LookupTable{
     constructor(tree){
         this.tree = tree;
         this.relationshipObjectNames = [];
@@ -132,80 +132,48 @@ export class ShowOrderTable{
             tree:this.tree});
     }
 
-    createHead(){
-        let treeroot = document.getElementById('showorderinfo');
+    createHead(rootId){
+        let treeroot = document.getElementById(rootId);
         let searchAear = `
         <p>
             Object Search:
-            <input class="search feedback-input no-border" readonly id="ordersearch" type="input" value="Order" autocomplete="off" style="width:80%"></input>
-            <button class="tablinks comp-btn" name="updateSelectObject" id="showOrderSearch">Refersh</button>
+            <input class="search feedback-input no-border" readonly id="lookuptable_ordersearch" type="input" value="Account" autocomplete="off" style="width:80%"></input>
+            <button class="tablinks comp-btn" name="updateSelectObject" id="lookuptable_showOrderSearch">Refersh</button>
         </p>
         <p>
-            ID / Ordderr Number/Order Number: <input class="search feedback-input" id="orderIdInput" type="input" value=""></input>
-            <input class="search feedback-input hide" id="ordernumberInput" type="input" value=""></input>
-            <input class="search feedback-input hide" id="ordernameInput" type="input" value=""></input>
+            ID / Ordderr Number/Order Number: <input class="search feedback-input" id="lookuptable_orderIdInput" type="input" value=""></input>
         </p>
-        <div class="showordersearchresult">
+        <div class="showordersearchresult" id="lookuptable_result">
             <div class="totalbar"><span>Total Records : </span><span class="recordsnumber">0</span></div>
-            <div class="totalbar" id="showordernotificationmessage"></div>
+            <div class="totalbar" id="lookuptable_showordernotificationmessage"></div>
 
             <div class="objsearchresult"></div>
             <div class="detailearchresult"></div>
-            <div id="showordertable"></div>
-            <div id="showorderrealtionshiptable" class="csw-display-flex"></div>
-            <div id="showorder-additional" style="white-space: pre;"></div>
+            <div id="lookuptable_showordertable"></div>
+            <div id="lookuptable_showorderrealtionshiptable" class="csw-display-flex"></div>
+            <div id="lookuptable_showorder-additional" style="white-space: pre;"></div>
         </div>`
             var div = document.createElement("div");
             div.innerHTML=searchAear;
             treeroot.appendChild(div);
-            $('#sobjectsearchoffset').hide();
             this.addEvents();
-            this.mainTable = new RenderTable($('#showordertable'));
+            this.mainTable = new LookupRenderTable($('#lookuptable_showordertable'));
             this.mainTable.update();
     }
 
     addEvents(){
 
-        $('#showOrderSearch').on('click', async ()=> {
-            let sobjectname = $('#ordersearch').val();
-            let id = $('#orderIdInput').val().trim();
-            let ordernumber = $('#ordernumberInput').val().trim();
-            let ordername = $('#ordernameInput').val().trim();
+        $('#lookuptable_showOrderSearch').on('click', async ()=> {
+            let sobjectname = $('#lookuptable_ordersearch').val();
+            let id = $('#lookuptable_orderIdInput').val().trim();
 
-            // CBS PF 00297394
-            if (id){
-                if (/^\d{8}|$\d{10}/.test(id)){
-                    ordernumber = id;
-                    id='';
-                }else if (/^\w{4,6}\d{8}$/ig.test(id)){
-                    ordername = id;
-                    id='';
-                }else if (!/^[\w\d]{15,18}$/.test(id)){
-                    alert('invalid input');
-                    return;
-                }
-            }else {
-                if (!(ordernumber || ordername)){
-                    alert('invalid input');
-                    return;
-                }
-            }
+            let records = await this.tree.retrieve('select Id, Name from '+sobjectname+' limit 100');
             
-            if (ordernumber || ordername){
-                $('#ordersearch').val('Order');
-                sobjectname = 'Order';
-            }
-            else{
-                ordernumber='';
-                ordername='';
-                sobjectname = await  this.tree.getSObjectNameById(id);
-                $('#ordersearch').val(sobjectname);
-            }
             await this.setSObjectName(sobjectname);
-            this.updateMainObj(id, ordernumber, ordername);
+            this.updateMainObj(records);
         })
 
-        $('.showordersearchresult').on('click','.sobject-link',(event)=>{
+        $('#lookuptable_result.showordersearchresult').on('click','.sobject-link',(event)=>{
             let target = $(event.target).attr('target');
             let targetId = $(event.target).attr('value');
             let originalField = $(event.target).attr('name');
@@ -228,16 +196,15 @@ export class ShowOrderTable{
         return await this.updateObjectById(recordId);
     }
 
-    async updateMainObj(id, ordernumber, ordername){
+    async updateMainObj(mainRecords){
 
-        if (this.sobjectName && (id || (this.sobjectName=='Order' && (ordernumber|| ordername)))){
+        if (this.sobjectName && (mainRecords && mainRecords.length)){
             for(let t of this.relationshipTable){
                 $('#'+t.id).remove();
             }
             $('.showordersearchresult [id].field-check').each((i, j)=>{
                 $(j).remove();
             })
-            this.records = [];
 
             let sobjectDescribe = this.sobjectDescribes[this.sobjectName];
 
@@ -254,12 +221,6 @@ export class ShowOrderTable{
                 return {label:e.label, property:e.name, isLink:!!e.relationshipName, target:e.referenceTo.length == 1?e.referenceTo[0]+'.Id':'what.Id'};
             });
 
-            let input = {Id:id};
-            if (this.sobjectName=='Order'){
-                input.OrderNumber = ordernumber;
-                input.Name = ordername;
-            }
-
             let relationshipNames = sobjectDescribe.fields.filter(e=>e.relationshipName).map(e=>e.relationshipName);
             let selected = Object.keys(allChecked).filter(element => {
                 return element.indexOf(sobjectDescribe.name+'.')==0&&allChecked[element] && element.indexOf('undefined')==-1;
@@ -274,20 +235,12 @@ export class ShowOrderTable{
                 return {name:e,label:e, property:e}
             });
 
-            let result = await this.tree.getRecordsByFields(this.sobjectName, showFields, 0, input, selected);
-            this.mainTable.dataList = result.results ||[];
-            this.records.push(...this.mainTable.dataList);
+            this.mainTable.dataList = mainRecords;
             this.mainTable.description = `<h1>${sobjectDescribe.name}</h1>`;
             this.mainTable.update();
             //  ***********************************
-            if (this.mainTable.dataList.length>0){
-                id = this.mainTable.dataList[0].Id;
-            }
-            if (!id){
-                return;
-            }
 
-            await this.createReferencedTables(sobjectDescribe, id, this.mainTable.dataList[0]);
+            //await this.createReferencedTables(sobjectDescribe, id, this.mainTable.dataList[0]);
         }
     }
 
@@ -357,7 +310,7 @@ export class ShowOrderTable{
                 }
             }
 
-            	
+                
         }
 
         for (let relatinoship of relatinoshipRows2){
@@ -409,7 +362,7 @@ export class ShowOrderTable{
         let childId = this.createSubBlock($('#showorderrealtionshiptable'));
         let fieldFilterUI = this.addRelationFieldFilter($('#'+childId), sobject);
 
-        let rTable = new RenderTable($('#'+childId));
+        let rTable = new LookupRenderTable($('#'+childId));
         this.relationshipTable.push(rTable);
         rTable.description = `<h1>${sobject} - ${field}</h1>`;
         let q = {};
@@ -539,5 +492,208 @@ export class ShowOrderTable{
             
             $('#showorder-additional').html(JSON.stringify(payload, '', '\t'));
         }
+    }
+}
+
+
+class LookupRenderTable{
+    constructor(container){
+        this.headers = [];
+        this.fields = [];
+        this.dataList = [];
+        this.showRelatedFields = [];
+        this.id = Tools.getUuid();
+        this.sortField={};
+        this.description = '';
+        this.container = container;
+        $(container).append(`<table id="${this.id}" class="table"><thead><tr  class="row"><th>Loading table datas</th></thead></tr></table>`);
+        this.sortable = false;
+        this.showingMore = false;
+        this.bindingEvent = false;
+        this.defaulShow = true;
+        this.defaultShowRecords = 20;
+
+        this.actions = [{label:'reload'}]
+    }
+
+    update(){
+        $('#'+this.id).html(this.create());
+        if (!this.dataList.length){
+            $(this.container).addClass('record-empty');
+        }
+
+        if (!this.bindingEvent){
+            $('#'+this.id).on('click','.show_hide_btn', (event)=>{
+                let body = $('#'+this.id).find('tbody');
+                let header = $('#'+this.id).find('thead tr:nth-child(2)');
+                if (body.is('.hide')){
+                    $(event.target).text('Hide');
+                    body.removeClass('hide');
+                    header.removeClass('hide');
+                }else{
+                    $(event.target).text('Show');
+                    body.addClass('hide');
+                    header.addClass('hide');
+                }
+            })
+
+            $('#'+this.id).on('click','button.show_more_btn', (event)=>{
+                this.showMore();
+                this.update();
+            })
+
+            $('#'+this.id).on('click','button', (event)=>{
+                let buttonName = $(event.target).attr('name');
+                if (buttonName == 'reload'){
+                    this.reload_fn && this.reload_fn(this);
+                }
+            })
+            this.bindingEvent = true;
+        }
+    }
+
+    reload(fn){
+        this.reload_fn = fn;
+    }
+
+    displayShowMore(){
+        return this.dataList.length > 100 && this.showingMore == false;
+    }
+
+    showMore(){
+        this.showingMore = true;
+    }
+
+    create(){
+        if (!this.dataList.length){
+            return `<div>${this.description}</div><div>No Data</div>`;
+        }
+
+        let theDataToShowList = this.displayShowMore()?this.dataList.slice(0, Math.min(100, this.dataList.length)):this.dataList;
+        this.defaulShow = true;
+        let actionBtn = this.actions.map(e =>{
+            return `<button class="${e.label}_btn btn" name="${e.label}">${e.label}</button>`;
+        })
+        return `<thead>
+                    <tr  class="row header"><th class="cell" colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}(${this.dataList.length})${this.displayShowMore()?'<button class="show_more_btn hide_table">Show More</button>':''} ${actionBtn} <button class="show_hide_btn hide_table">${this.defaulShow?'Hide':'Show'}</button></th></tr>
+                    <tr  class="row blue ${this.defaulShow?'':'hide'}">
+                        <th class="cell head-action" tabindex="0"></th>
+                        ${this.fields.concat(this.showRelatedFields).map(e=>{
+                            return `<th class="cell field-${e.label}" tabindex="0">${e.label}
+                                <button class="actions-button" name="${e.label}" title="${e.property}" style="${this.sortable?'':'display:none'}">
+                                    <svg class="actions-icon">
+                                        <use xlink:href="symbols.svg#${this.sortField[e.label]?.asc?'arrowdown':'arrowup'}"></use>
+                                    </svg>
+                                </button>
+                            </th>`
+                        }).join('')}
+                    </tr>
+                </thead>
+                <tbody class="${this.defaulShow?'':'hide'}">
+                    ${theDataToShowList.map(r=>{
+                        return `
+                <tr class="row ${r.Name}" title="${r.Id}" >
+                    <td class="cell field-Action" title="Action" tabindex="0" rowspan="2"><button class="show_more_btn">Show More</button></td>
+                    <td class="cell field-Id" title="Id" tabindex="0" rowspan="2">${r.Id}</td>
+                    
+                ${this.fields.concat(this.showRelatedFields).filter(e=>e.property!='Id').map(e=>{
+                    let value = this.valuetostring(r, e.property, '');
+                    return `<td class="cell field-${e.property}" title="${e.property}" tabindex="0">${value} ${this.translationToLink(r, e)}</td>`
+                }).join('')}
+                    
+                </tr>
+                <tr class="row ${r.Name}" title="${r.Id}"><td class="cell field-Id" title="Id" tabindex="0" colspan="${this.fields.length+this.showRelatedFields.length}-1">
+                    <div class="lookup-record-block ${r.Id}" id="">${this.recordBlock(r)}</div>
+                </td></tr>
+                `
+                    }).join('')}
+                </tbody>`
+    }
+
+    recordBlock(r){
+        let html = '';
+        let relateds = r.relatedRecords || [];
+        for (let relatedObject of relateds){
+            html+= this.createRecordUI(relatedObject);
+        }
+        return html;
+    }
+
+    createRecordUI(r){
+        let keys = Object.keys(r);
+
+        return `<thead>
+            <tr  class="row blue">
+                <th class="cell head-action" tabindex="0"></th>
+                ${this.fields.concat(this.showRelatedFields).map(e=>{
+                    return `<th class="cell field-${e.label}" tabindex="0">${e.label}
+                        <button class="actions-button" name="${e.label}" title="${e.property}" style="${this.sortable?'':'display:none'}">
+                            <svg class="actions-icon">
+                                <use xlink:href="symbols.svg#${this.sortField[e.label]?.asc?'arrowdown':'arrowup'}"></use>
+                            </svg>
+                        </button>
+                    </th>`
+                }).join('')}
+            </tr>
+        </thead>
+        <tbody class="${this.defaulShow?'':'hide'}">
+            ${theDataToShowList.map(r=>{
+                return `
+        <tr class="row ${r.Name}" title="${r.Id}" >
+            <td class="cell field-Action" title="Action" tabindex="0" rowspan="2"><button class="show_more_btn">Show More</button></td>
+            <td class="cell field-Id" title="Id" tabindex="0" rowspan="2">${r.Id}</td>
+            
+        ${this.fields.concat(this.showRelatedFields).filter(e=>e.property!='Id').map(e=>{
+            let value = this.valuetostring(r, e.property, '');
+            return `<td class="cell field-${e.property}" title="${e.property}" tabindex="0">${value} ${this.translationToLink(r, e)}</td>`
+        }).join('')}
+            
+        </tr>
+        <tr class="row ${r.Name}" title="${r.Id}"><td class="cell field-Id" title="Id" tabindex="0" colspan="${this.fields.length+this.showRelatedFields.length}-1">
+            <div class="lookup-record-block ${r.Id}" id="">${this.recordBlock(r)}</div>
+        </td></tr>
+        `
+            }).join('')}
+        </tbody>`
+    }
+
+    valuetostring(record, prop, attr){
+        let value = record;
+        let props = prop.split('.');
+        while(props.length && value){
+            let first = props.shift();
+            value = value[first];
+        }
+        if (value===true){
+            return `<input type="checkbox" disabled checked></input>`;
+        }
+        if (value===false){
+            return `<input type="checkbox" disabled></input>`;
+        }
+
+        if (value === undefined || value === null){
+            return '';
+        }
+        if (typeof value ==='string'){
+            return value;
+        }
+        if (typeof value ==='object'){
+            if (value.length===0){
+                return  '';
+            }
+            if (value.length>0 && value.join){
+                return value.map(e=>`<span class="relationship">${this.valuetostring(e, '', attr)}</span>`).join(',');
+            }
+            return JSON.stringify(value);
+        }
+        return value;
+    }
+
+    translationToLink(r, e){
+        let val = this.valuetostring(r, e.property, '');
+        if (!e.isLink ||!val){
+            return '';
+        }
+        return `<a><span class="sobject-link" name="${e.property}" target="${e.target}" value="${val}">go</span></a>`
     }
 }

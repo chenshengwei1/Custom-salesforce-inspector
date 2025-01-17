@@ -17,6 +17,8 @@ export class RenderTable{
         this.bindingEvent = false;
         this.defaulShow = true;
         this.defaultShowRecords = 20;
+
+        this.actions = [{label:'reload'}]
     }
 
     update(){
@@ -44,8 +46,19 @@ export class RenderTable{
                 this.showMore();
                 this.update();
             })
+
+            $('#'+this.id).on('click','button', (event)=>{
+                let buttonName = $(event.target).attr('name');
+                if (buttonName == 'reload'){
+                    this.reload_fn && this.reload_fn(this);
+                }
+            })
             this.bindingEvent = true;
         }
+    }
+
+    reload(fn){
+        this.reload_fn = fn;
     }
 
     displayShowMore(){
@@ -63,8 +76,11 @@ export class RenderTable{
 
         let theDataToShowList = this.displayShowMore()?this.dataList.slice(0, Math.min(100, this.dataList.length)):this.dataList;
         this.defaulShow = this.dataList.length < this.defaultShowRecords;
+        let actionBtn = this.actions.map(e =>{
+            return `<button class="${e.label}_btn btn" name="${e.label}">${e.label}</button>`;
+        })
         return `<thead>
-                    <tr  class="row header"><th class="cell" colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}(${this.dataList.length})${this.displayShowMore()?'<button class="show_more_btn hide_table">Show More</button>':''} <button class="show_hide_btn hide_table">${this.defaulShow?'Hide':'Show'}</button></th></tr>
+                    <tr  class="row header"><th class="cell" colspan="${this.fields.length+this.showRelatedFields.length}">${this.description}(${this.dataList.length})${this.displayShowMore()?'<button class="show_more_btn hide_table">Show More</button>':''} ${actionBtn} <button class="show_hide_btn hide_table">${this.defaulShow?'Hide':'Show'}</button></th></tr>
                     <tr  class="row blue ${this.defaulShow?'':'hide'}">
                         ${this.fields.concat(this.showRelatedFields).map(e=>{
                             return `<th class="cell field-${e.label}" tabindex="0">${e.label}

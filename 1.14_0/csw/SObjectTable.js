@@ -98,7 +98,7 @@ export class SObjectTable extends Notifiable{
                 return  '';
             }
             if (value.length>0 && value.join){
-                return value.map(e=>`<span class="relationship">${this.rowtostring(e, attr)}</span>`).join(',');
+                return value.map(e=>`<span class="relationship">${this.rowtostring(e, attr)}</span>`).join(',</br>');
             }
             return JSON.stringify(value);
         }
@@ -506,10 +506,16 @@ export class SObjectTable extends Notifiable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    if(reg.test(item.name) || reg.test(item.label)){
+                    let ma = reg.exec(item.label) || reg.exec(item.name) || reg.exec(item.name.replaceAll(/[\s_]+/gi,''))|| reg.exec(item.label.replaceAll(/[\s_]+/gi,''))
+
+                    if(ma){
+                        item.matchIndex = ma.index;
                         matchItems.push(item);
                     }
                 }
+                matchItems = matchItems.sort((a, b)=>{
+                    return a.matchIndex - b.matchIndex
+                })
                 return matchItems;
             }
         })

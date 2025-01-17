@@ -350,7 +350,7 @@ export class Tools {
     }
     
   let csvSerialize = separator => table.map(row => row.map(cell => "\"" + cellToString(cell).split("\"").join("\"\"") + "\"").join(separator)).join("\r\n");
-    copyToClipboard(csvSerialize("\t"));
+    Tools.copyToClipboard(csvSerialize("\t"));
   }
 
 

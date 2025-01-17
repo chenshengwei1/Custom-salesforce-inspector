@@ -691,7 +691,7 @@ export class ReportTable{
                     <div id="object-field-tree-content"></div>
                     <div id="object-field-tree-groupby"></div>
                 </div>
-                <div class="sibar"></div>
+                <div class="sibar" style="cursor: col-resize;"></div>
                 <div class="right-panel">
                     <div class="objsearchresult tabitem Reports"></div>
                     <div class="report-view-soql tabitem SOQL">
@@ -1319,6 +1319,7 @@ export class ReportTable{
             }
             
         })
+        this.addResizeControl($('.report-searchresult .sibar')[0]);
 
         $('#object-field-tree').on('click','li span.item-name',(event)=>{
             $('li span.item-name').removeClass('selected');
@@ -1335,6 +1336,45 @@ export class ReportTable{
         Tools.setAutoComplete('report-sobjectsearch', this.tree);
 
         this.addDraggingEvent();
+    }
+
+    addResizeControl(element){
+        let isPanning = false;
+        let startPoint = {x:0, y:0};
+        let endPoint = {x:0, y:0};
+        let scale = 1;
+        let parent = $(element).parent()[0];
+        element.onmousedown = (e)=>{
+            isPanning = true;
+            startPoint = {x:e.x,y:e.y};
+            let prev = $(element).prev();
+            if (prev && prev.length){
+                startPoint.prev = prev[0].clientWidth;
+            }
+
+        }
+
+        parent.onmousemove = (e)=>{
+            if (isPanning){
+                endPoint = {x:e.x,y:e.y};
+                var dx = (endPoint.x - startPoint.x + startPoint.prev)/scale;
+                //console.log(startPoint.prev + ' - ' + dx);
+                $(element).parent()[0].style.setProperty('--left_panel_width', dx+'px');
+            }
+        }
+
+        element.onmouseup = function(e){
+            if (isPanning){ 
+                endPoint = {x:e.x,y:e.y};
+                var dx = ( endPoint.x - startPoint.x + startPoint.prev)/scale;
+                $(element).parent()[0].style.setProperty('--left_panel_width', dx+'px');
+                isPanning = false;
+            }
+        }
+
+        element.onmouseleave = function(e){
+            //isPanning = false;
+        }
     }
 
     addDraggingEvent(){

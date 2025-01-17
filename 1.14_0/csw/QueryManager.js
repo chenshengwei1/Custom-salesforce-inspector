@@ -544,7 +544,7 @@ export class QueryMananger{
         return objectTypes.length?objectTypes[0]:'';
     }
 
-    isVald(exfField, sobjectDescribe){
+    async isVald(exfField, sobjectDescribe){
         if (exfField.indexOf('.') == -1){
             let matchField = sobjectDescribe.fields.find(e=>e.name.toLowerCase()==exfField.toLowerCase());
             return !!matchField;
@@ -555,9 +555,9 @@ export class QueryMananger{
                 return e.relationshipName?.toLowerCase() == relationShipName.toLowerCase();
             });
             if (childRelaShip && childRelaShip.referenceTo && childRelaShip.referenceTo[0]){
-                let childSObjectDescribe = this.getSobjectDescribe(childRelaShip.referenceTo[0]);
+                let childSObjectDescribe = await this.asyncGetSobjectDescribe(childRelaShip.referenceTo[0]);
                 if (childSObjectDescribe){
-                    return this.isVald(props.join('.'), childSObjectDescribe);
+                    return await this.isVald(props.join('.'), childSObjectDescribe);
                 }
             }
         }
@@ -637,7 +637,7 @@ export class QueryMananger{
         let loadFields = fields.map(contextValueField => contextValueField.name);
         if (extfields){
             for(let exfField of extfields){
-                if (this.isVald(exfField, sobjectDescribe)){
+                if (await this.isVald(exfField, sobjectDescribe)){
                     loadFields.push(exfField);
                 }
             }
@@ -760,6 +760,15 @@ export class QueryMananger{
             }
             return await this.loadNextRecords(nextData, isLoadAll);
         }
+    }
+
+    async retrieve(soql){
+        let result = await this.getRecordsBySoql(soql);
+        return result ? result.results : [];
+    }
+
+    soql(){
+        return this.retrieve(soql);
     }
 
     async getRecordsBySoql(soql){
@@ -1012,6 +1021,11 @@ export class QueryMananger{
 
     getSobjectDescribe(sobjectName){
         this.getDescribeSobject(sobjectName);
+        return this.dataMap[sobjectName]?.sobjectDescribe;
+    }
+
+    async asyncGetSobjectDescribe(sobjectName){
+        await this.getDescribeSobject(sobjectName);
         return this.dataMap[sobjectName]?.sobjectDescribe;
     }
 

@@ -42,6 +42,12 @@
   cursor: pointer;
 }
 
+.tab.top-btn{
+  position: sticky;
+    top: 0;
+    z-index: 10000;
+}
+
 .tab.top-btn.url-processing{
 
     background: linear-gradient(to right, #fa0606, #9198e5);
@@ -333,6 +339,11 @@ span.relationship{
 
 #result-table tr{
   background-color: white;
+}
+
+
+#result-table tr.selected{
+  background-color: rgb(248 241 241);
 }
 
 tr th{
@@ -1303,14 +1314,15 @@ body {
   display: flex;
   flex-wrap: wrap;
   width: 100%;
+  --left_panel_width : 30%;
 }
 
 .left-panel{
-  width: 30%;
+  width: var(--left_panel_width);
 }
 
 .right-panel{
-  width: calc(70% - 20px);
+  width: calc(100% - var(--left_panel_width) - 20px);
 }
 
 .close{

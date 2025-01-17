@@ -636,9 +636,13 @@ export class OrderSVGFlow{
                     stroke-dashoffset=".5" shape-rendering="crispEdges" display="none"
                     d="M2267,1850.6L2423,1850.6L2423,1959.6L3212,1959.6"></path>
             </svg>
+            <div class="orderflow-view-result4 tabitem Result">
+                <div id="svgflow-showallsobjectdatatable4"></div>
+            </div>
             <div class="orderflow-view-result3 tabitem Result">
                 <div id="svgflow-showallsobjectdatatable3"></div>
             </div>
+            
         </div>`
             var div = document.createElement("div");
             div.innerHTML=searchAear;
@@ -1112,6 +1116,100 @@ export class OrderSVGFlow{
             }
         }
         omplan2.create(Object.values(allRecords));
+
+
+        
+
+        let stockStatus = [
+            {
+            name:'Not Reserved',
+            label:'plan A',
+            id:'001',
+            type:'001',
+            status:'',
+            flowId:'f1',
+            dependecy:''
+        },{
+            name:'Pending Reserve',
+            label:'plan B',
+            id:'002',
+            type:'002',
+            status:'',
+            flowId:'f1',
+            dependecy:'001'
+        },{
+            name:'Reserved',
+            label:'plan B',
+            id:'003',
+            type:'003',
+            status:'',
+            flowId:'f1',
+            dependecy:'002'
+        },{
+            name:'Reserved+Allocated',
+            label:'plan B',
+            id:'004',
+            type:'004',
+            status:'',
+            flowId:'f1',
+            dependecy:'002'
+        },{
+            name:'Stocked Out',
+            label:'plan B',
+            id:'005',
+            type:'005',
+            status:'complete',
+            flowId:'f1',
+            dependecy:'009'
+        },{
+            name:'Reserve Released',
+            label:'plan B',
+            id:'006',
+            type:'006',
+            status:'complete',
+            flowId:'f1',
+            dependecy:'003'
+        },{
+            name:'Stocked In',
+            label:'plan B',
+            id:'007',
+            type:'007',
+            status:'complete',
+            flowId:'f2',
+            dependecy:'008'
+        },{
+            name:'Pending Stock In',
+            label:'plan B',
+            id:'008',
+            type:'008',
+            status:'',
+            flowId:'f2',
+            dependecy:'005'
+        },{
+            name:'Pending Stock Out',
+            label:'plan B',
+            id:'009',
+            type:'009',
+            status:'',
+            flowId:'f1',
+            dependecy:'004'
+        }];
+
+        // itemId -> dependecy
+        let depdenciesItems = [{ id:101, itemId:'009', dependecy:'005'},
+            { id:102, itemId:'008', dependecy:'007' },
+            { id:103, itemId:'001', dependecy:'002' },
+            { id:103, itemId:'002', dependecy:'003' },
+            { id:103, itemId:'002', dependecy:'004' },
+            { id:103, itemId:'003', dependecy:'006' },
+            { id:103, itemId:'004', dependecy:'009' },
+            { id:103, itemId:'004', dependecy:'006', label: 'manual release' },
+            { id:103, itemId:'005', dependecy:'008' }]
+
+        let omplan4 = new DependecyFlow(depdenciesItems, 'svgflow-showallsobjectdatatable4');
+        omplan4.master = this;
+        omplan4.name = 'Stock Status';
+        omplan4.create(Object.values(stockStatus));
     }
 
     initGroupping(allRecords){
@@ -1969,4 +2067,569 @@ class OMPlanDefine extends OMPlan2{
         return super.createSwimlaneItem(swimlane);
     }
 
+}
+
+class DependecyFlow {
+    constructor(dependecyItems, id){
+        this.dependecyItems = dependecyItems;
+        this.definitionNames = {};
+        this.setNames(dependecyItems);
+        this.id = id;
+        this.name = 'Demo';
+        this.svgId = 'svg-omplan-'+Math.floor(Math.random()*1000);
+        this.omPlanUIRecords = [];
+        this.X_MAX = 2582;
+        this.X_ADDING = 420 - 50;
+        this.X_CLIENT = 320;
+        this.X_INIT = 50;
+        this.Y_INIT = 50;
+        this.Y_ADDING = 360 - 50;
+        this.Y_CLIENT = 140;
+        this.X_VIEW_CLIENT = 320;
+        this.Y_VIEW_CLIENT = 260;
+        this.rightMap = {};
+        this.toMap = {};
+        this.orderitemDependecyInstances = [];
+    }
+
+    getOrderName(){
+        return this.master.orderName || '';
+    }
+
+    getOrchestrationPlanDefinitions(id){
+        return this.name;
+    }
+
+    setNames(allItemDefinitions){
+        for (let item of allItemDefinitions){
+            this.definitionNames[item.id] = item.name;
+        }
+    }
+
+    setAllDependencys(orchestrationItems){
+        this.toMap = {};
+        for (let k of orchestrationItems){
+            this.toMap[k.id] = k;
+            k.deps = [];
+            this.setDeps(k, orchestrationItems);
+        }
+    }
+
+    getDependencied(definitionId){
+        let items = [];
+        for (let itemDefined of this.dependecyItems||[]){
+            if (itemDefined.itemId == definitionId){
+                items.push(itemDefined.dependecy);
+            }
+        }
+        return items;
+    }
+
+    setDeps(item, orchestrationItems){
+        let dependeciesDefineIds = this.getDependencied(item.id);
+        for (let dependencyDefinedId of dependeciesDefineIds){
+            let dependencyItem = orchestrationItems.find(e => e.id == dependencyDefinedId);
+            if (dependencyItem){
+                if (item.deps){
+                    item.deps.push(dependencyItem.id);
+                }else{
+                    item.deps = [dependencyItem.id];
+                }
+            }
+        }
+    }
+
+    create(allRecords){
+        $('#' + this.id).html(`<svg id="${this.svgId}" class="container">${this.createOMPlanFlow(allRecords)}<svg/>`)
+        let maxX = this.X_INIT;
+        let maxY = this.Y_INIT;
+        for (let item of allRecords){
+            maxX = Math.max(item.x, maxX);
+            maxY = Math.max(item.y, maxY);
+        }
+
+
+        $('#'+this.svgId).attr('width', maxX+ this.X_ADDING);
+        $('#'+this.svgId).attr('height', maxY + this.Y_ADDING);
+
+        this.addHoverControl()
+        this.addZoomControl();
+        this.addClickContrl();
+    }
+
+    addHoverControl(){
+        $('#' + this.id+ ' g[vlocity_cmt-xomPlanView_xomPlanView].planitem').on('mouseout', (e)=>{
+            $('.hover').removeClass('hover');
+        })
+        $('#' + this.id+ ' g[vlocity_cmt-xomPlanView_xomPlanView].planitem').on('mouseover', (e)=>{
+
+            $('[vlocity_cmt-xomPlanView_xomPlanView].hover').removeClass('hover');
+            let id = this.getIdByG(e.currentTarget);
+            $('.id-'+id).addClass('hover');
+            $('path.id-'+id).each((index, ele) =>{
+                let relatedIds = this.getIdsByPath(ele);
+                for (let relatedId of relatedIds){
+                    $('.item-content.id-'+relatedId).addClass('hover');
+                }
+            })
+        })
+    }
+
+    addZoomControl(){
+        const svgImage = document.getElementById(this.svgId);
+        const svgContainer = document.getElementById(this.id);
+        let w1 = $('#'+this.svgId).attr('width');
+        let h1 = $('#'+this.svgId).attr('height');
+
+        var viewBox = {x:0,y:0,w:svgImage.clientWidth||w1,h:svgImage.clientHeight||h1};
+        svgImage.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+        const svgSize = {w:svgImage.clientWidth||w1,h:svgImage.clientHeight||h1};
+        var isPanning = false;
+        var startPoint = {x:0,y:0};
+        var endPoint = {x:0,y:0};;
+        var scale = 1;
+
+        svgContainer.onmousewheel = (e)=> {
+            if (!e.ctrlKey){
+                return;
+            }
+            e.preventDefault();
+            // /console.log('deltaY='+e.deltaY);
+            var w = viewBox.w;
+            var h = viewBox.h;
+            var mx = e.offsetX;//mouse x  
+            var my = e.offsetY;    
+            var dw = w*Math.sign(e.deltaY)*0.05*-1;
+            var dh = h*Math.sign(e.deltaY)*0.05*-1;
+            var dx = dw*mx/svgSize.w;
+            var dy = dh*my/svgSize.h;
+            viewBox = {x:viewBox.x+dx,y:viewBox.y+dy,w:viewBox.w-dw,h:viewBox.h-dh};
+            scale = svgSize.w/viewBox.w;
+            //zoomValue.innerText = `${Math.round(scale*100)/100}`;
+            svgImage.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+        }
+
+
+        svgContainer.onmousedown = (e)=>{
+            isPanning = true;
+            startPoint = {x:e.x,y:e.y};   
+        }
+
+        svgContainer.onmousemove = (e)=>{
+            if (isPanning){
+                endPoint = {x:e.x,y:e.y};
+                var dx = (startPoint.x - endPoint.x)/scale;
+                var dy = (startPoint.y - endPoint.y)/scale;
+                var movedViewBox = {x:viewBox.x+dx,y:viewBox.y+dy,w:viewBox.w,h:viewBox.h};
+                svgImage.setAttribute('viewBox', `${movedViewBox.x} ${movedViewBox.y} ${movedViewBox.w} ${movedViewBox.h}`);
+            }
+        }
+
+        svgContainer.onmouseup = function(e){
+            if (isPanning){ 
+                endPoint = {x:e.x,y:e.y};
+                var dx = (startPoint.x - endPoint.x)/scale;
+                var dy = (startPoint.y - endPoint.y)/scale;
+                viewBox = {x:viewBox.x+dx,y:viewBox.y+dy,w:viewBox.w,h:viewBox.h};
+                svgImage.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+                isPanning = false;
+            }
+        }
+
+        svgContainer.onmouseleave = function(e){
+            isPanning = false;
+        }
+    }
+
+    addClickContrl(){
+        $('#' + this.id+ ' g[vlocity_cmt-xomPlanView_xomPlanView].planitem').on('dblclick', (event)=>{
+            let id = this.getIdByG(event.currentTarget);
+            if (id){
+                this.master.query(id);
+            }
+            event.stopPropagation();
+        })
+    }
+
+   
+
+    setLeft(orchestrationItems){
+        let toMap = {};
+        this.topMap = toMap;
+        for (let k of orchestrationItems){
+            toMap[k.id] = k;
+            k.left = 0;
+            k.top = 0;
+        }
+        for (let i = 0; i< orchestrationItems.length; i++){
+            for (let record of orchestrationItems) {
+                for (let depencyId of (record.deps || [])){
+                    if (toMap[depencyId] && toMap[depencyId].left <= record.left){
+                        toMap[depencyId].left = toMap[depencyId].left + 1;
+                    }
+                }
+            }
+        }
+    }
+
+    setTop(swimlanerMap){
+        swimlanerMap.row = 0;
+        for (let i = 0; i<swimlanerMap.swimlanes.length;i++){
+            let swimlane = swimlanerMap.swimlanes[i];
+            let swimlaneLeftCount = {};
+            
+            swimlane.items.sort((a1, b1)=>{
+                if (b1.left != a1.left){
+                    return b1.left - a1.left;
+                }
+                let bDeps = b1.deps.map(dep=>{
+                    return this.toMap[dep];
+                }).filter(e => e.swimlane == b1.swimlane);
+                let aDeps = a1.deps.map(dep=>{
+                    return this.toMap[dep];
+                }).filter(e => e.swimlane == a1.swimlane);
+                return bDeps.length - aDeps.length;
+            })
+
+            let topMap = {};
+            for (let j = 0; j<swimlane.items.length; j++){
+                let item = swimlane.items[j];
+
+                let avgRightTop = 0;
+                if (item.deps.length){
+                   
+                    let sameSwimlanceItems = item.deps.map(dep=>{
+                        return this.toMap[dep];
+                    }).filter(e => e.swimlane == swimlane);
+                    if (sameSwimlanceItems.length){
+                        let rightTops = sameSwimlanceItems.map(e => e.top);
+                        avgRightTop = Math.floor(rightTops.reduce((sum, currentValue)=>sum+currentValue, 0) / rightTops.length);
+                    }
+                }
+
+                if (!topMap[item.left+'#'+avgRightTop]){
+                    item.top = avgRightTop;
+                }else {
+                    avgRightTop++;
+                    while(topMap[item.left+'#'+avgRightTop]){
+                        avgRightTop++
+                    }
+                    item.top = avgRightTop;
+                }
+                if (!swimlaneLeftCount[item.left]){
+                    swimlaneLeftCount[item.left] = 1;
+                }else{
+                    swimlaneLeftCount[item.left]++;
+                }
+                topMap[item.left+'#'+item.top]=true;
+
+
+                item.adjustTop = 0;
+                for (let k=0; k< i; k++){
+                    item.adjustTop += swimlanerMap.swimlanes[k].rows;
+                }
+
+                swimlane.rows = Math.max(swimlaneLeftCount[item.left], swimlane.rows);
+            }
+            swimlanerMap.row += swimlane.rows;
+        }
+    }
+
+    swimlanes(allRecords){
+        this.setAllDependencys(allRecords);
+        this.setLeft(allRecords);
+
+        // columns the max dependecy legnth
+        let swimlanerMap = {columns:0, rows: 0, items : allRecords, lines: [], swimlanes:[]};
+        
+        for (let record of allRecords){
+            let swimlane = swimlanerMap.swimlanes.find (e => e.planDefId == record.flowId);
+            if (swimlane){
+                swimlane.items.push(record);
+                
+            } else{
+                swimlane = {
+                    rows: 0,
+                    columns:1,
+                    x: 0,
+                    y:0,
+                    w:0,
+                    h:0,
+                    planDefId: record.flowId,
+                    name:this.getOrchestrationPlanDefinitions(record.flowId),
+                    items:[record]
+                };
+                swimlanerMap.swimlanes.push(swimlane);
+            }
+            record.adjustTop = 0;
+            record.swimlane = swimlane;
+
+            swimlane.columns < record.left && (swimlane.columns = record.left);
+            swimlanerMap.columns < swimlane.columns && (swimlanerMap.columns = swimlane.columns);
+        }
+        swimlanerMap.columns++;
+
+
+        swimlanerMap.swimlanes.sort((s1, s2)=>{
+            let leftWight1 = s1.items.map(e=>e.left||0).reduce((sum, curr)=>sum+curr, 0)/s1.items.length;
+            let leftWight2 = s2.items.map(e=>e.left||0).reduce((sum, curr)=>sum+curr, 0)/s2.items.length;
+            return leftWight1 - leftWight2;
+        })
+
+        swimlanerMap.swimlanes.forEach((e, index) => {
+            e.index = index;
+        })
+
+        this.setTop(swimlanerMap);
+
+
+        for (let item of allRecords){
+            item.x = this.X_INIT + this.X_ADDING * item.left;
+            item.y = this.Y_INIT * (item.swimlane.index + 1) + this.Y_ADDING * (item.top + item.adjustTop);
+        }
+
+        // set size
+        swimlanerMap.w = swimlanerMap.columns * this.X_ADDING + this.X_INIT;
+        swimlanerMap.h = swimlanerMap.rows * this.Y_ADDING + this.Y_INIT * swimlanerMap.swimlanes.length;
+        
+
+        for (let k = 0; k<swimlanerMap.swimlanes.length;k++){
+            let swimlane = swimlanerMap.swimlanes[k];
+            for (let t = 0; t < k; t++){
+                swimlane.y += swimlanerMap.swimlanes[t].h;
+            }
+            swimlane.w = swimlanerMap.w;
+            swimlane.h = swimlane.rows * this.Y_ADDING + this.Y_INIT;
+        }
+
+        return swimlanerMap;
+    }
+
+    getIdByG(target){
+        let item = $(target).children('.item-content')[0];
+        let classList = item.classList;
+        let foId  = '';
+        for (let i = 0; i < classList.length; i++){
+            let match = classList[i].match(/id-([\d\w]+)/)
+            if (match){
+                foId = match[1];
+                break;
+            }
+        }
+        return foId;
+    }
+
+    getIdsByPath(target){
+        let item = $(target)[0];
+        let classList = item.classList;
+        let foIds = [];
+        for (let i = 0; i < classList.length; i++){
+            let match = classList[i].match(/id-([\d\w]+)/)
+            if (match){
+                foIds.push(match[1]);
+            }
+        }
+        return foIds;
+    }
+    getDefinitionName(definitionId){
+        return this.definitionNames[definitionId] || definitionId;
+    }
+
+    createOMPlanFlow(orchestrationItems){
+
+        this.lines = [];
+        this.svgItems = [];
+        this.simlaneContents = [];
+
+        let simlanesObj = this.swimlanes(orchestrationItems);
+
+        for (let swimlane of simlanesObj.swimlanes){
+            this.simlaneContents.push(this.createSwimlaneItem(swimlane));
+            for (let item of swimlane.items){
+                this.createPlanUI(item);
+            }
+        }
+        // for (let item of orchestrationItems){
+        //    this.createPlanUI(item, orchestrationItems)
+        // }
+
+        return [...this.simlaneContents, ...this.lines, ...this.svgItems].join('')
+    }
+
+
+
+    createPlanUI(item){
+        let uiItem = this.omPlanUIRecords[item.id];
+        if (uiItem){
+            return uiItem;
+        }
+
+        uiItem = {
+            id: item.id,
+            status:item.status,
+            label: item.name || this.getDefinitionName(item.id),
+            type: item.type,
+            x: item.x,
+            y: item.y
+        }
+        this.omPlanUIRecords[item.id] = uiItem;
+
+        this.svgItems.push(this.createPlanItem(uiItem));
+
+        for (let dependencyDefinedId of (item.deps||[])){
+            let dependencyItem = this.topMap[dependencyDefinedId];
+            if (dependencyItem){
+                //this.createPlanUI(dependencyItem, orchestrationItems);
+                this.lines.push(this.createPlanLine(item, dependencyItem));
+            }
+        }
+        return uiItem;
+    }
+
+    createSwimlaneItem(swimlane){
+         swimlane = swimlane || {
+            x: 0,
+            y:0,
+            h: 'Sales Agent Notification after Stock Replenishment',
+            w: 'Milestone',
+            orderName:'',
+            name:''
+        }
+        return `
+        <g transform="translate(${swimlane.x}, ${swimlane.y})" vlocity_cmt-xomPlanView_xomPlanView="" class="swimlaneitem shadow id-${swimlane.planDefId}">
+            <rect class="swimlane even" height="${swimlane.h}" width="${swimlane.w}" vlocity_cmt-xomPlanView_xomPlanView=""></rect>
+            <foreignObject class="swimlane-text-container " x="50" y="0" width="${swimlane.w}" vlocity_cmt-xomPlanView_xomPlanView="">
+                <div tabindex="0" class="swimlane-text fr " vlocity_cmt-xomplanview_xomplanview="">[${this.getOrderName()||'...'}]</div>
+                <div tabindex="0" class="swimlane-text plan-def " vlocity_cmt-xomplanview_xomplanview="">${swimlane.name}</div>
+            </foreignObject>
+        </g>`
+    }
+
+    createPlanItem(planItem){
+        let planItemDemo = {
+            id: 'a3IBU000000Rvwz2AC',
+            status:'completed',
+            label: 'Sales Agent Notification after Stock Replenishment',
+            type: 'Milestone'
+        }
+
+        // let left = 370 * planItem.left + this.X_INIT;
+        // let top = (planItem === globalThis? top : planItem.top) * this.Y_ADDING + this.Y_INIT;
+        // top += (m + g) * e.adjustTop;
+        // r && (left = 370 * (t.columns - e. left - 1) + this.X_INIT);
+
+        let str = `<g aria-haspopup="true" aria-controls="menu1" transform="translate(${planItem.x},${planItem.y})" class="planitem" vlocity_cmt-xomPlanView_xomPlanView="">
+			<foreignObject class="item-content id-${planItem.id}" width="${this.X_VIEW_CLIENT}" height="${this.Y_VIEW_CLIENT}"
+				vlocity_cmt-xomPlanView_xomPlanView="">
+				<div tabindex="0" aria-label="${planItem.label}, ${planItem.type}" role="presentation" class="item-content-inner item-border item-content-inner-nojeopardy ${planItem.status}" vlocity_cmt-xomplanview_xomplanview="">
+					<div class="item-name " vlocity_cmt-xomplanview_xomplanview="">
+						<div class="item-header-name" vlocity_cmt-xomplanview_xomplanview="" title="${planItem.label}">${planItem.label}</div>
+						<div class="item-menu-icon" tabindex="0" vlocity_cmt-xomplanview_xomplanview="" style="pointer-events: visible;">
+                            <svg width="20" height="20" aria-label="Show more actions" vlocity_cmt-xomPlanView_xomPlanView="">
+								<use fill="#181818" xlink:href="#httpshere2serveuatdvlocitycmtsandboxvfforcecomsldsiconsutilityspritesvgsymbolssvg_threedots" vlocity_cmt-xomPlanView_xomPlanView=""></use>
+							</svg>
+                        </div>
+					</div>
+					<div class="item-details" vlocity_cmt-xomplanview_xomplanview="">
+						<div class="item-type item-type-width" vlocity_cmt-xomplanview_xomplanview="">${planItem.type}</div>
+						<div class="date-container" vlocity_cmt-xomplanview_xomplanview="" style="display: none;">
+							<div class="dates start-date" vlocity_cmt-xomplanview_xomplanview="" style="display: none;">
+							</div>
+							<div class="dates due-date" vlocity_cmt-xomplanview_xomplanview="" style="display: none;">
+							</div>
+						</div>
+						<div class="" vlocity_cmt-xomplanview_xomplanview=""></div>
+					</div>
+					<div class="item-footer" vlocity_cmt-xomplanview_xomplanview="">
+                        <span class="slds-badge slds-badge_lightest" vlocity_cmt-xomplanview_xomplanview="">${planItem.status}</span>
+                        <span class="" vlocity_cmt-xomplanview_xomplanview=""></span>
+                        <span class="external-dep-span" vlocity_cmt-xomplanview_xomplanview=""></span>
+                    </div>
+				</div>
+			</foreignObject>
+		</g>`
+        return str;
+    }
+
+    createPlanLine(planItema, planItemb){
+        let sourcePos = planItema;
+        let targetPos = planItemb;
+        if(sourcePos.x > targetPos.x || (sourcePos.x == targetPos.x && sourcePos.y > targetPos.y)){
+            let temp = sourcePos;
+            sourcePos = targetPos;
+            targetPos = temp;
+        }
+        let m = {x: sourcePos.x + this.X_CLIENT, y: sourcePos.y + this.Y_CLIENT / 2};
+        let t = {x: targetPos.x, y: targetPos.y + this.Y_CLIENT / 2};
+        let p1 = {x:m.x+(this.X_ADDING - this.X_VIEW_CLIENT)/2, y:m.y}//{x: m.x + (t.x - m.x)/2, y:m.y};
+        let p2 = {x: m.x+(this.X_ADDING - this.X_VIEW_CLIENT)/2, y:t.y};
+        let path = `M${m.x},${m.y}L${p1.x},${p1.y}L${p2.x},${p2.y}L${t.x},${t.y}`;
+        // M 4323.21 2706.79 L 4320.73 2714.22 L 4319.5 2710.5 L 4315.78 2709.27 Z
+        let p2m = {x: 4323.21, y: 2706.79};
+        let p2l1 = {x: 4320.73, y: 2714.22};
+        let p2l2 = {x: 4319.5, y: 2710.5};
+        let p2l3 = {x: 4315.78, y: 2709.27};
+
+        // to right
+        // M 2878.05 1593.8 L 2868.95 1598.35 L 2871.22 1593.8 L 2868.95 1589.25 Z
+        let lineToRigth = [2878.05, 1593.8,2868.95,1598.35,2871.22,1593.8,2868.95,1589.25];
+        let lineToDown = '2515.5 1533.85 2510.95 1524.75  2515.5 1527.02  2520.05 1524.75'.split(/\s+/);
+        let lineToUp = '2795.05 2888.75 2799.92 2897.68 2795.3 2895.57 2790.83 2898.01'.split(/\s+/);
+        let lineToLeft = '2555.95 2341.3 2565.05 2336.75 2562.78 2341.3 2565.05 2345.85'.split(/\s+/);
+
+        let lineToletTop = '2672.53 1729.27 2675.75 1719.62 2677.35 1724.45 2682.18 1726.05'.split(/\s+/);
+        let lineToLeftDown = '2360.29 1600.63 2369.85 1599.97 2366.23 1603.1 2366.56 1607.88'.split(/\s+/);
+        let lineToRightTop = '2735.47 1666.33 2732.25 1675.98 2730.65 1671.15 2725.82 1669.55'.split(/\s+/);
+        let lineToRightDown = '2670.71 1729.97 2661.15 1730.63 2664.77 1727.5 2664.44 1722.72'.split(/\s+/);
+
+        // to down
+        // M 2515.5 1533.85 L 2510.95 1524.75 L 2515.5 1527.02 L 2520.05 1524.75 Z
+        let toPoint = (lineArray)=>{
+            return {
+                m : {x: lineArray[0], y: lineArray[1]},
+                l1 : {x: lineArray[2] - lineArray[0], y: lineArray[3] - lineArray[1]},
+                l2 : {x: lineArray[4] - lineArray[0], y: lineArray[5] - lineArray[1]},
+                l3 : {x: lineArray[6] - lineArray[0], y: lineArray[7] - lineArray[1]},
+            }
+        }
+        let lineToDown1 = toPoint(lineToDown);
+        let lineToRigth1 = toPoint(lineToRigth);
+        let lineToUp1 = toPoint(lineToUp);
+        let lineToLeft1 = toPoint(lineToLeft);
+        let lineToletTop1 = toPoint(lineToletTop);
+        let lineToLeftDown1 = toPoint(lineToLeftDown);
+        let lineToRightTop1 = toPoint(lineToRightTop);
+        let lineToRightDown1 = toPoint(lineToRightDown);
+
+        // to up
+        // M 2795.05 2888.75 L 2799.92 2897.68 L 2795.3 2895.57 L 2790.83 2898.01 Z
+
+        // to left
+        // M 2555.95 2341.3 L 2565.05 2336.75 L 2562.78 2341.3 L 2565.05 2345.85 Z
+
+         // to letf-up
+        // M 2672.53 1729.27 L 2675.75 1719.62 L 2677.35 1724.45 L 2682.18 1726.05 Z
+
+        //to left-up
+        //M 2360.29 1600.63 L 2369.85 1599.97 L 2366.23 1603.1 L 2366.56 1607.88 Z
+
+        // top right-down
+        // M 2670.71 1729.97 L 2661.15 1730.63 L 2664.77 1727.5 L 2664.44 1722.72 Z
+
+        //left-down
+        // M 2672.53 1729.27 L 2675.75 1719.62 L 2677.35 1724.45 L 2682.18 1726.05 Z
+
+        // right-up
+        // M 2735.47 1666.33 L 2732.25 1675.98 L 2730.65 1671.15 L 2725.82 1669.55 Z
+
+        let achar = lineToRigth1;
+        let startAchar = lineToLeft1;
+
+        let start = {x:m.x,y:m.y};
+
+        return `<g><path class="line id-${planItema.id} id-${planItemb.id}" d="${path}" vlocity_cmt-xomPlanView_xomPlanView=""></path>
+            <path d="M ${start.x} ${start.y} L ${startAchar.l1.x + start.x} ${startAchar.l1.y + start.y} L ${startAchar.l2.x + start.x} ${startAchar.l2.y + start.y} L ${startAchar.l3.x + start.x} ${startAchar.l3.y + start.y} Z" style="visibility: hidden;" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"></path>
+            <path d="M ${t.x} ${t.y} L ${achar.l1.x + t.x} ${achar.l1.y + t.y} L ${achar.l2.x + t.x} ${achar.l2.y + t.y} L ${achar.l3.x + t.x} ${achar.l3.y + t.y} Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"></path>
+        <g>`
+    }
 }

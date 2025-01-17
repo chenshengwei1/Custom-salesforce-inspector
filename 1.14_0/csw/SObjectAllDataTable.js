@@ -774,7 +774,7 @@ export class SObjectAllDataTable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    let match = reg.exec(item.name) || reg.exec(item.label)
+                    let match = reg.exec(item.label) || reg.exec(item.name)|| reg.exec(item.name.replaceAll(/[\s_]+/gi,''))|| reg.exec(item.label.replaceAll(/[\s_]+/gi,''))
                     if(match){
                         let m = {...item};
                         m.__index = match.index;
@@ -782,6 +782,7 @@ export class SObjectAllDataTable{
                     }
                 }
                 matchItems.sort((a, b)=>{return a.__index - b.__index})
+                //console.log('dd=>'+JSON.stringify(matchItems.map(e=>e.name+'-'+e.__index)))
                 return matchItems;
             }
         })
@@ -814,7 +815,7 @@ export class SObjectAllDataTable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    if(reg.test(item.name) || reg.test(item.label)){
+                    if(reg.test(item.name) || reg.test(item.label) || reg.test(item.name.replace(/[\s_]+/,''))|| reg.test(item.label.replace(/[\s_]+/,''))){
                         matchItems.push(item);
                     }
                 }
@@ -849,7 +850,7 @@ export class SObjectAllDataTable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    if(reg.test(item.name) || reg.test(item.label)){
+                    if(reg.test(item.name) || reg.test(item.label)|| reg.test(item.name.replace(/[\s_]+/,''))|| reg.test(item.label.replace(/[\s_]+/,''))){
                         matchItems.push(item);
                     }
                 }
@@ -891,7 +892,7 @@ export class SObjectAllDataTable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    if(reg.test(item.value) || reg.test(item.label)){
+                    if(reg.test(item.value) || reg.test(item.label)|| reg.test(item.name.replace(/[\s_]+/,''))|| reg.test(item.label.replace(/[\s_]+/,''))){
                         matchItems.push(item);
                     }
                 }
@@ -932,7 +933,7 @@ export class SObjectAllDataTable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    if(reg.test(item.value) || reg.test(item.label)){
+                    if(reg.test(item.value) || reg.test(item.label)|| reg.test(item.name.replace(/[\s_]+/,''))|| reg.test(item.label.replace(/[\s_]+/,''))){
                         matchItems.push(item);
                     }
                 }
