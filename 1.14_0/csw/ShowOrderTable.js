@@ -448,23 +448,16 @@ export class ShowOrderTable{
             return checkFields.indexOf(subsobjectDescribe.name+'.'+t.name)>-1 || t.name=='Id' || t.nameField;
         })
 
-        rTable.fields = showFields.map(e=>{
-            return {label:e.label, property:e.name, isLink:!!e.relationshipName, target:subsobjectDescribe.name+'.'+e.relationshipName, nameField:e.nameField};
-        });
-
-        let IdIndex = -1;
-        for (let i = 0;i<rTable.fields.length;i++){
-            if(rTable.fields[i].property == 'Id'){
-                IdIndex = i;
-                break
-            }
-        }
-        if (IdIndex != -1 && IdIndex != 0){
-            let temp = rTable.fields[0];
-            rTable.fields[0] = rTable.fields[IdIndex];
-            rTable.fields[IdIndex] = temp;
-        }
-
+        let nameField = subsobjectDescribe.fields.find(t=>{
+            return t.nameField;
+        })
+        rTable.fields = [
+            {label:'Id', property:'Id', isLink:false, target:subsobjectDescribe.name+'.Id', nameField:false},
+            {label:nameField.label, property:nameField.name, isLink:false, target:subsobjectDescribe.name+'.'+nameField.relationshipName, nameField:true},
+            ...showFields.filter(t=>t.name!='Id' && !t.nameField).map(e=>{
+                return {label:e.label, property:e.name, isLink:!!e.relationshipName, target:subsobjectDescribe.name+'.'+e.relationshipName, nameField:false};
+            })
+        ];
 
         let relationshipNames = subsobjectDescribe.fields.filter(e=>e.relationshipName).map(e=>e.relationshipName);
         let selected = Object.keys(allChecked).filter(element => {

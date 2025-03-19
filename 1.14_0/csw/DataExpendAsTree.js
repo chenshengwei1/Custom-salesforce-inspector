@@ -273,7 +273,7 @@ export class DataExpendAsTree extends Notifiable{
         <p>
             <button class="tablinks" name="SearchSObject" id="SearchSObject">Search</button>
             <button class="tablinks" name="filterBlankValue" id="filterBlankValue">Filter Blank Value</button></br>
-            Use Tooling API: <input class="hide" id="useToolingAPICheck" type="checkbox" value="N"></input>
+            Use Tooling API: <input id="useToolingAPICheck" type="checkbox" value="N"></input>
 
             <button class="" id="syncSessionBtn" >Sync Session</button>
         </p>

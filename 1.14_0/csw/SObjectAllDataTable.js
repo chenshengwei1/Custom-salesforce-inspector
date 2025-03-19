@@ -255,6 +255,7 @@ export class SObjectAllDataTable{
 
     load(id){
         this.apexLogs[id]="loading....";
+        this.currentLogId = id;
         this.addApexlog2Bar();
         this.createMessagePopup('', 'message', true);
         this.tree.getApexlogByid(id).then(e=>{
@@ -290,35 +291,57 @@ export class SObjectAllDataTable{
         <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
             aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_small">
             <div class="slds-modal__container second-level-modal">
-                <header class="slds-modal__header">
-                    <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate">
-                    ${title}</h2>
-                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close">
-                            <ul class="svgicon">
-                                <li class="slds-assistive-text icon-close"></li>
-                                <li class="icon-delete">
-                                    <svg class="icon" aria-hidden="true">
-                                        <use href="#icon-delete"></use>
-                                    </svg>
-                                </li>
-                            </ul>
-                        </button>
-                </header>
+                <div class="slds-modal__header">
+                    <span id="modal-heading-01" class="slds-modal__title slds-hyphenate">
+                    ${title}
+                    </span>
+                    <span class="icon-delete slds-modal__close">
+                        <svg class="del-icon" viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        </svg>
+                    </span>
+                </div>
                 <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
                     <pre>${content}</pre>
                 </div>
             </div>
+            <div class="slds-backdrop slds-backdrop_open">
+                <input type="text" id="slds-modal-search" class="slds-modal__backdrop" autocomplete="off"/>
+            </div>
         </section>`);
         $('#sobjectdatainfo').on('click', '[role="dialog"] .slds-modal__close', this.removeDialog);
+       
+
         if(loading){
             Tools.createProgress($('.slds-modal__content'));
         }
+        
+        let filterContent = ()=>{
+            let val = $('#slds-modal-search').val();
+            let data =  this.apexLogs[this.currentLogId] || 'No data to show';
+            let newContent = data;
+            if (val){
+                newContent = data.split('\n').filter(e=>e.indexOf(val)!=-1).join('\n');
+            }
+            this.createMessagePopup(newContent, 'message');
+        }
+
+        $('#sobjectdatainfo input').on('keydown', (e) => {
+            if (e.key === 'Enter') {
+                filterContent();
+            }
+          });
+
+        $('#sobjectdatainfo input').on('change', (e)=>{
+            filterContent();
+        })
     }
 
     addApexlogEvent(){
         $('.objsearchApexlogBar').on('click','.apexlog-bar-btn', (e)=>{
             let logId = $(e.target).parents('[data-logid]').attr('data-logid');
             console.log('delete apex log content='+logId);
+            
             delete this.apexLogs[logId];
             this.addApexlog2Bar();
         })
@@ -327,8 +350,17 @@ export class SObjectAllDataTable{
             let logId = $(e.target).parents('[data-logid]').attr('data-logid');
             console.log('open apex log content='+logId);
             let data =  this.apexLogs[logId] || 'loading';
+            
             this.createMessagePopup(data, 'message');
         })
+
+        $('.objsearchApexlogBar').on('click','.apexlog-bar-label', (e)=>{
+            let logId = $(e.target).parents('[data-logid]').attr('data-logid');
+            console.log('open apex log content='+logId);
+            let data =  this.apexLogs[logId] || 'loading';
+            this.createMessagePopup(data, 'message');
+        })
+
     }
 
 
@@ -582,6 +614,7 @@ export class SObjectAllDataTable{
                 </div>
                 <button class="search btn-add comp-btn">Add</button>
                 <button class="search btn-add2 comp-btn">Add2</button>
+                <button class="search btn-add3 comp-btn">Related Field</button>
             </div>
         </p>
         <div class="searchresult">
@@ -616,7 +649,7 @@ export class SObjectAllDataTable{
                 }
                 this.filterRecords();
             }
-            
+        this.tree.getDescribeSobject(this.sobjectname);
     }
 
     initObjectAllDataHead(){
@@ -659,6 +692,20 @@ export class SObjectAllDataTable{
                 <input class="fieldvalue feedback-input" type="input" value=""></input>
             </span>
             <button class="btn-delete">-</button></div>`).insertBefore( $( event.target));
+
+            //new AutoComplete1(uuid,sobjectDescribe.fields.map(e=>e.name)).createApi();
+        })
+
+        $('.field-value-filter .btn-add3').on('click', (event)=>{
+            if (!this.sobjectDescribe){
+                return;
+            }
+            $(`<div class="c-item-relation inputonly">
+                <input class="fieldname feedback-input main-style"></input>
+                <span class="fieldvalue-container">
+                    <input class="fieldvalue feedback-input" type="input" value=""></input>
+                </span>
+                <button class="btn-delete">-</button></div>`).insertBefore( $( event.target));
 
             //new AutoComplete1(uuid,sobjectDescribe.fields.map(e=>e.name)).createApi();
         })
@@ -859,11 +906,141 @@ export class SObjectAllDataTable{
         })
         autoCompleten.createApi2();
 
-        let autoCompleten2 = new AutoComplete1('.c-item.inputonly input.fieldvalue',()=>{
-            if (!autoCompleten.currentFocus){
+        let relationFieldAutoComp = new AutoComplete1('.c-item-relation>input.fieldname',async ()=>{
+
+            if (!relationFieldAutoComp.currentFocus){
                 return;
             }
-            let selectField = $(autoCompleten.currentFocus).val();
+
+            let sobjectDescribe = null;
+            let selectField = $(relationFieldAutoComp.currentFocus).val();
+            if (!selectField || selectField.indexOf('.') == -1){
+                sobjectDescribe = this.sobjectDescribe;
+            }else{
+                let paths = selectField.split('.');
+
+                let cuurentDesc = this.sobjectDescribe;
+                for(let i = 0; i< paths.length-1; i++){
+                    let fieldObj = cuurentDesc?.fields?.filter(e=>e.relationshipName==paths[i]);
+                    if (fieldObj.length == 0){
+                        return [];
+                    }
+                    cuurentDesc = await this.tree.getDescribeSobject(fieldObj[0].referenceTo[0]);
+                }
+                sobjectDescribe = cuurentDesc;
+            }
+            let fieldNames = sobjectDescribe?.fields || [];
+            let relationFields = fieldNames.filter(e=>e.relationshipName).map(e=>e.relationshipName);
+            return fieldNames.map(e=>e.name).concat(relationFields);
+
+        });
+        relationFieldAutoComp.setItemProvider({
+            value:(item)=>{
+                return item;
+            },
+            label:(item, defval)=>{
+                return item;
+            },
+            filter:(valueArr, word)=>{
+                try{
+                    var reg = new RegExp("(" + word + ")","i");
+                }
+                catch (e){
+                    var reg = new RegExp("(.*)","i");
+                }
+                let matchItems = [];
+                for(var i=0;i<valueArr.length;i++){
+                    let item=valueArr[i];
+                    if(reg.test(item.replace(/[\s_]+/,''))){
+                        matchItems.push(item);
+                    }
+                }
+                return matchItems;
+            },
+            change(element, newValue){
+                let selectField = $(element).val();
+                if (!selectField || selectField.indexOf('.') == -1){
+                    element.value = newValue;
+                }else{
+                    let paths = selectField.split('.');
+                    paths[paths.length-1] = newValue;
+                    element.value = paths.join('.');
+                }
+            }
+        })
+        relationFieldAutoComp.allowBlank = true;
+        relationFieldAutoComp.createApi2();
+
+        let relationFieldValueAutoComp = new AutoComplete1('.c-item-relation input.fieldvalue',()=>{
+
+            if (!relationFieldValueAutoComp.currentFocus){
+                return;
+            }
+            let sobjectDescribe = null;
+
+            // 当前的field name
+            let selectField = $(relationFieldValueAutoComp.currentFocus).closest('.c-item-relation').children('input').val();
+            if (!selectField || selectField.indexOf('.') == -1){
+                sobjectDescribe = this.sobjectDescribe;
+            }else{
+                let paths = selectField.split('.');
+
+                let cuurentDesc = this.sobjectDescribe;
+                for(let i = 0; i< paths.length-1; i++){
+                    let fieldObj = cuurentDesc?.fields?.filter(e=>e.relationshipName==paths[i]);
+                    if (fieldObj.length == 0){
+                        return [];
+                    }
+                    cuurentDesc = this.tree.getSyncDescribeSobject(fieldObj[0].referenceTo[0]);
+                    if (cuurentDesc){
+                        this.tree.getDescribeSobject(fieldObj[0].referenceTo[0])
+                    }
+                }
+                sobjectDescribe = cuurentDesc;
+            }
+            let topField = selectField.split('.').pop();
+            let fieldObj = sobjectDescribe?.fields?.find(e=>e.name == topField);
+            return fieldObj?.picklistValues || [];
+
+        });
+        relationFieldValueAutoComp.setItemProvider({
+            value:(item)=>{
+                return item.value;
+            },
+            label:(item, defval)=>{
+                let queryable = item.queryable;
+                if (!queryable){
+                    return `<span style="">${defval}</span> `;
+                }
+                return item.label + '('+defval+')';
+            },
+            filter:(valueArr, word)=>{
+                try{
+                    var reg = new RegExp("(" + word + ")","i");
+                }
+                catch (e){
+                    var reg = new RegExp("(.*)","i");
+                }
+                let matchItems = [];
+                for(var i=0;i<valueArr.length;i++){
+                    let item=valueArr[i];
+                    if(reg.test(item.value) || reg.test(item.label)|| reg.test(item.value.replace(/[\s_]+/,''))|| reg.test(item.label.replace(/[\s_]+/,''))){
+                        matchItems.push(item);
+                    }
+                }
+                return matchItems;
+            }
+        })
+        relationFieldValueAutoComp.allowBlank = true;
+        relationFieldValueAutoComp.createApi2();
+
+        let autoCompleten2 = new AutoComplete1('.c-item.inputonly input.fieldvalue',()=>{
+            if (!autoCompleten2.currentFocus){
+                return;
+            }
+
+            // 当前的field name
+            let selectField = $(autoCompleten2.currentFocus).closest('.c-item').children('input').val();
             if (!selectField){
                 return [];
             }
@@ -892,7 +1069,7 @@ export class SObjectAllDataTable{
                 let matchItems = [];
                 for(var i=0;i<valueArr.length;i++){
                     let item=valueArr[i];
-                    if(reg.test(item.value) || reg.test(item.label)|| reg.test(item.name.replace(/[\s_]+/,''))|| reg.test(item.label.replace(/[\s_]+/,''))){
+                    if(reg.test(item.value) || reg.test(item.label)|| reg.test(item.value.replace(/[\s_]+/,''))|| reg.test(item.label.replace(/[\s_]+/,''))){
                         matchItems.push(item);
                     }
                 }

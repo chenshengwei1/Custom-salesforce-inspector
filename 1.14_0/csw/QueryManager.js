@@ -1041,4 +1041,17 @@ export class QueryMananger{
         let allchecked = JSON.parse(allCheckeds);
         return allchecked;
     }
+
+    getAllCheckedPlus(){
+        let allCheckeds = localStorage.getItem('sobject:field:check:plus');
+        if (!allCheckeds){
+            let allcheckedToObject = {};
+            let allcheckedToList = this.getAllChecked();
+            for (let key in allcheckedToList) {
+                allcheckedToObject[key] = allcheckedToList[key];
+            }
+        }
+        let allchecked = JSON.parse(allCheckeds);
+        return allchecked;
+    }
 }

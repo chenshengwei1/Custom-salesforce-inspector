@@ -15,7 +15,8 @@ export class PopupRelationMenu{
         this.sobject = opt.sobject;
         this.tree = opt.tree;
         this.currentSObject = this.sobject;
-        this.currentPaths = [{level:0, obj:this.sobject, attr:this.sobject}]
+        this.currentPaths = [{level:0, obj:this.sobject, attr:this.sobject}];
+        this.multipleChecked = true;
         this.create();
     }
 
@@ -26,10 +27,18 @@ export class PopupRelationMenu{
         this.updatePaths();
     }
 
+    on(eventName, eventFn){
+        if (eventName=='close' && typeof eventFn=='function'){
+            this.cloasetFn = eventFn;
+        }else if (eventName=='open' && typeof eventFn=='function'){
+            this.optFn = eventFn;
+        }
+    }
+
     open(){
         let opt = this.optFn()||{};
-        this.selected = opt.selected||[];
-        this.disabledItems = opt.disabledItems||[];;
+        this.selected = this.multipleChecked ? opt.selected||[] : [];
+        this.disabledItems = opt.disabledItems||[];
     }
 
     close(newCheckeds, newUncheckeds){
@@ -154,6 +163,11 @@ export class PopupRelationMenu{
                 let index = this.selected.indexOf(prefix);
                 this.selected.splice(index, 1);
                 this.updatedSelect[prefix]=false;
+            }
+
+            if(!this.multipleChecked){
+                $(event.currentTarget).siblings(".pop-menu").hide();
+                this.close(this.selected, []);
             }
         })
 

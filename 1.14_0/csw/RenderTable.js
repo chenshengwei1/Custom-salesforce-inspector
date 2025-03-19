@@ -19,6 +19,11 @@ export class RenderTable{
         this.defaultShowRecords = 20;
 
         this.actions = [{label:'reload'}]
+
+        this.childParentFieldMap = {
+            'OrderItem':{child:'Id', 'parent':'vlocity_cmt__ParentItemId__c'},
+            'Order':{child:'Id', 'parent':'vlocity_cmt__SupersededOrderId__c'}
+        };
     }
 
     update(){
@@ -69,12 +74,69 @@ export class RenderTable{
         this.showingMore = true;
     }
 
+    sortRecordsById(records){
+
+        let childParentFieldMap = this.childParentFieldMap;
+        
+        if (records.length == 0){
+            return records;
+        }
+        if (Object.keys(childParentFieldMap).includes(records[0].attributes?.type||'NA')){
+            let childField = childParentFieldMap[records[0].attributes?.type||'NA'].child;
+            let parentField = childParentFieldMap[records[0].attributes?.type||'NA'].parent;
+
+            records.sort((a,b)=>{
+                if (a[childField] == b[childField]){
+                    return a[parentField] < b[parentField]?-1:1;
+                }
+                return a[childField] < b[childField]?-1:1;
+            })
+
+            let newRecords = [];
+            let copyOfRecords = records.slice();
+            let getAllChildrent = (inputRecords, parent, level)=>{
+                if (!parent){
+                    return [];
+                }
+                let childrent = [];
+                for (let i = 0; i < inputRecords.length; i++){
+                    if (inputRecords[i][parentField] == parent){
+                        inputRecords[i].__level = level;
+                        childrent.push(inputRecords[i]);
+                        childrent.push(...getAllChildrent(inputRecords, inputRecords[i][childField], level+1));
+                    }   
+                }
+                return childrent;
+            }
+
+            for (let i = 0; i < records.length; i++){
+                if (records[i][parentField] == null){
+                    newRecords.push(records[i]);
+                    let childrent = getAllChildrent(copyOfRecords, records[i][childField], 1);
+                    for (let j = 0; j < childrent.length; j++){
+                        newRecords.push(childrent[j]);
+                    }
+                }
+            }
+
+            for (let i = 0; i < records.length; i++){
+                let existRecord = newRecords.find(e=>e[childField] == records[i][childField]);
+                if (!existRecord){
+                    newRecords.push(records[i]);
+                }
+            }
+            return newRecords;
+        }
+        return records;
+    }
+
     create(){
         if (!this.dataList.length){
             return `<div>${this.description}</div><div>No Data</div>`;
         }
 
         let theDataToShowList = this.displayShowMore()?this.dataList.slice(0, Math.min(100, this.dataList.length)):this.dataList;
+        theDataToShowList = this.sortRecordsById(theDataToShowList);
         this.defaulShow = this.dataList.length < this.defaultShowRecords;
         let actionBtn = this.actions.map(e =>{
             return `<button class="${e.label}_btn btn" name="${e.label}">${e.label}</button>`;
@@ -100,11 +162,19 @@ export class RenderTable{
 
                 ${this.fields.concat(this.showRelatedFields).map(e=>{
                     let value = this.valuetostring(r, e.property, '');
-                    return `<td class="cell field-${e.property}" title="${e.property}" tabindex="0">${value} ${this.translationToLink(r, e)}</td>`
+                    return `<td class="cell field-${e.property} ${e.property =='Id'? this.recordLevel(r):''}" title="${e.property}" tabindex="0">${value} ${this.translationToLink(r, e)}</td>`
                 }).join('')}
                 </tr>`
                     }).join('')}
                 </tbody>`
+    }
+
+    recordLevel(record){
+        let level = 0;
+        if (!this.childParentFieldMap[record.attributes?.type||'NA']){
+            return '';
+        }
+        return `level-${record.__level||0}`
     }
 
     valuetostring(record, prop, attr){

@@ -10,6 +10,7 @@ export class AutoComplete1{
         this.index=-1;          //当前选中的DIV的索引
         this.search_value="";   //保存当前搜索的字符
         this.cursorPos=0;
+        this.allowBlank = false;
         this.itemProvider={
             value:(e)=>e,
             label:(e,k)=>k
@@ -27,9 +28,9 @@ export class AutoComplete1{
         this.itemProvider = provider;
     }
 
-    getAutoCompleteValues(){
+    async getAutoCompleteValues(){
         if (typeof this.value_arr == 'function'){
-            return this.value_arr();
+            return await this.value_arr();
         }
         return this.value_arr;
     }
@@ -93,7 +94,11 @@ export class AutoComplete1{
         }
         let word = this.search_value.substring(0, cursorPos).match(/[a-zA-Z0-9_]*$/)[0];
         //this.obj.value = this.search_value.substring(0, leftChar+1)+newText+this.search_value.substring(rightChar);
-        this.obj.value = newText;
+        if (this.itemProvider && this.itemProvider.change){
+            this.itemProvider.change(this.obj, newText);
+        }else{
+            this.obj.value = newText;
+        }
     }
 
     autoOnmouseover(target, _div_index){
@@ -157,7 +162,7 @@ export class AutoComplete1{
         }
     }
     //程序入口
-    start(event){
+    async start(event){
         if(this.obj&&event.keyCode!=13&&event.keyCode!=38&&event.keyCode!=40){
             this.init();
             this.deleteDIV();
@@ -165,36 +170,49 @@ export class AutoComplete1{
             this.cursorPos = this.obj.selectionStart;
             let word = this.search_value.substring(0, this.cursorPos).match(/[a-zA-Z0-9_\s]*$/)[0];
 
-            var valueArr=this.getAutoCompleteValues();
+            var valueArr= await this.getAutoCompleteValues();
             valueArr = valueArr.sort((a,b)=>{
                 return this.itemProvider.value(a).localeCompare(this.itemProvider.value(b))
             });
+            let isAll = false;
             if(word.replace(/(^\s*)|(\s*$)/g,'')==""){
-                return;
+                if (this.allowBlank){
+                    word = '.*';
+                    isAll = true;
+                }else{
+                    return;
+                }
             }//值为空，退出
 
             try{
-                var reg = new RegExp("^(" + word + ")","i");
+                var reg = new RegExp("(" + word + ")","i");
             }
             catch (e){
                 return;
             }
             var div_index=0;//记录创建的DIV的索引
             let matchItems = [];
-            if (this.itemProvider.filter){
-                matchItems = this.itemProvider.filter(valueArr, word);
-            }else{
+            if (isAll){
                 for(var i=0;i<valueArr.length;i++){
                     let v = this.itemProvider.value(valueArr[i]);
-                    if(reg.test(v)){
-                        matchItems.push(valueArr[i]);
-                    }
+                    matchItems.push(valueArr[i]);
                 }
-                matchItems = matchItems.sort((a, b)=>{
-                    let v1=this.itemProvider.value(a);
-                    let v2=this.itemProvider.value(b);
-                    return reg.exec(v1)?.index - reg.exec(v2)?.index;
-                });
+            }else{
+                if (this.itemProvider.filter){
+                    matchItems = this.itemProvider.filter(valueArr, word);
+                }else{
+                    for(var i=0;i<valueArr.length;i++){
+                        let v = this.itemProvider.value(valueArr[i]);
+                        if(reg.test(v)){
+                            matchItems.push(valueArr[i]);
+                        }
+                    }
+                    matchItems = matchItems.sort((a, b)=>{
+                        let v1=this.itemProvider.value(a);
+                        let v2=this.itemProvider.value(b);
+                        return reg.exec(v1)?.index - reg.exec(v2)?.index;
+                    });
+                }
             }
             for(var i=0;i<matchItems.length;i++){
                 let val = this.itemProvider.value(matchItems[i]);
@@ -272,6 +290,7 @@ export class AutoComplete1{
 
 
         $('body').on('focus',this.selector, (e)=>{
+            console.log('this.selector='+this.selector);
             if ($(e.currentTarget).is(this.selector)){
                 this.currentFocus = e.currentTarget;
             }

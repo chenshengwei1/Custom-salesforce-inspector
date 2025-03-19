@@ -68,12 +68,7 @@ export class SObjectTable extends Notifiable{
     }
 
     getAllChecked(){
-        let allCheckeds = localStorage.getItem('sobject:field:check');
-        if (!allCheckeds){
-            allCheckeds = '{}'
-        }
-        let allchecked = JSON.parse(allCheckeds);
-        return allchecked;
+        return this.tree.getAllChecked();
     }
 
     rowtostring(value, attr){
