@@ -1,0 +1,13 @@
+.selected td, .active  td{
+    background-color: rgb(216 216 216)
+}
+.selected th, .active  th{
+    background-color: rgb(216 216 216)
+}
+
+.selected td:hover, .active  td:hover{
+    background-color: rgb(216 216 216)
+}
+.selected th:hover, .active  th:hover{
+    background-color: rgb(216 216 216)
+}
