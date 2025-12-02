@@ -339,7 +339,8 @@ export class QueryMananger{
     async updateRecord(objectApiName, recordData, useToolingApi = false) {
         try {
             const basePath = useToolingApi ? '/services/data/v58.0/tooling/sobjects' : '/services/data/v58.0/sobjects';
-            const endpoint = `${basePath}/${objectApiName}/`;
+            //const endpoint = `${basePath}/${objectApiName}/`;
+            const endpoint = `${basePath}/${objectApiName}/${recordData.Id}`;
             
             // const response = await this.sfApiRequest(endpoint, {
             //     method: 'POST',
@@ -348,6 +349,7 @@ export class QueryMananger{
             //         'Content-Type': 'application/json'
             //     }
             // });
+            delete recordData.Id;
 
             let response = await sfConn.rest(endpoint, {method: 'PATCH', body: recordData,
                 headers: {
@@ -394,10 +396,10 @@ export class QueryMananger{
         }
     }
 
-    async updateRecord(objectApiName, recordData, useToolingApi = false) {
+    async deleteRecord(objectApiName, recordId, useToolingApi = false) {
         try {
             const basePath = useToolingApi ? '/services/data/v58.0/tooling/sobjects' : '/services/data/v58.0/sobjects';
-            const endpoint = `${basePath}/${objectApiName}/`;
+            const endpoint = `${basePath}/${objectApiName}/${recordId}`;
             
             // const response = await this.sfApiRequest(endpoint, {
             //     method: 'POST',

@@ -118,7 +118,7 @@ export class AnonymousApex{
         .then(res => res)
         .then(data => {
             if (data.success){
-                this.tree.getRecordsBySoql(`SELECT Id FROM ApexLog WHERE LogUserId = '${this.tree.userInfo.userId}' ORDER BY StartTime DESC LIMIT 1`)
+                this.tree.getRecordsBySoql(`SELECT Id FROM ApexLog WHERE LogUserId = '${this.tree.userInfo.userId}' and Operation like '%executeAnonymous%' ORDER BY StartTime DESC LIMIT 1`)
                 .then(data => {
                     this.openTab('ApexLogAnalysis', {id: data.data.records[0].Id, type: 'ApexLog'});
                     return this.tree.getApexlogByid(data.data.records[0].Id);
@@ -213,12 +213,13 @@ class SalesforceDebugManager {
         return this.tree.createRecord(objectApiName, recordData, true);
     }
 
-    updateRecord(objectApiName, recordData) {
+    updateRecord(objectApiName, recordId, recordData) {
+        recordData.Id = recordId;
         return this.tree.updateRecord(objectApiName, recordData, true);
     }
 
-    deleteRecord(objectApiName, recordData) {
-        return this.tree.deleteRecord(objectApiName, recordData, true);
+    deleteRecord(objectApiName, recordId) {
+        return this.tree.deleteRecord(objectApiName, recordId, true);
     }
 
     async setupDebugLevel(userId) {
@@ -226,12 +227,18 @@ class SalesforceDebugManager {
         const existingTraceFlag = await this.query(`
             SELECT Id, DebugLevelId, ExpirationDate 
             FROM TraceFlag 
-            WHERE TracedEntityId = '${userId}'
+            WHERE TracedEntityId = '${userId}' and ExpirationDate > ${new Date().toISOString()}
         `);
 
         if (existingTraceFlag.length > 0) {
             const debugLevel = await this.getDebugLevel(existingTraceFlag[0].DebugLevelId);
             if (this.isDebugLevelValid(debugLevel)) {
+
+                // if (existingTraceFlag[0].ExpirationDate < new Date().toISOString()) {
+                //     await this.updateRecord('TraceFlag', existingTraceFlag[0].Id, {
+                //         ExpirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+                //     });
+                // }
                 return existingTraceFlag[0];
             }
 
@@ -243,7 +250,7 @@ class SalesforceDebugManager {
             //     DebugLevelId: debugLevelId
             // })
             // 删除不合适的配置
-            await this.deleteRecord('TraceFlag', existingTraceFlag.records[0].Id);
+            await this.deleteRecord('TraceFlag', existingTraceFlag[0].Id);
         }
         // 获取或创建DebugLevel
         const debugLevelId = await this.getOrCreateDebugLevel();
