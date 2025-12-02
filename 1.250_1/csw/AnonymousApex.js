@@ -223,37 +223,26 @@ class SalesforceDebugManager {
     }
 
     async setupDebugLevel(userId) {
+
+        // 获取或创建DebugLevel
+        const debugLevelId = await this.getOrCreateDebugLevel();
+
         // 检查现有配置
         const existingTraceFlag = await this.query(`
             SELECT Id, DebugLevelId, ExpirationDate 
             FROM TraceFlag 
-            WHERE TracedEntityId = '${userId}' and ExpirationDate > ${new Date().toISOString()}
+            WHERE TracedEntityId = '${userId}' and DebugLevelId = '${debugLevelId}'
         `);
 
         if (existingTraceFlag.length > 0) {
-            const debugLevel = await this.getDebugLevel(existingTraceFlag[0].DebugLevelId);
-            if (this.isDebugLevelValid(debugLevel)) {
-
-                // if (existingTraceFlag[0].ExpirationDate < new Date().toISOString()) {
-                //     await this.updateRecord('TraceFlag', existingTraceFlag[0].Id, {
-                //         ExpirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString()
-                //     });
-                // }
+            if (existingTraceFlag[0].ExpirationDate < new Date().toISOString()) {
+                await this.deleteRecord('TraceFlag', existingTraceFlag[0].Id);
+            }else{
                 return existingTraceFlag[0];
             }
-
-            // 获取或创建DebugLevel
-            //const debugLevelId = await this.getOrCreateDebugLevel();
-
-            // 更新TraceFlag
-            // await this.updateRecord('TraceFlag', existingTraceFlag[0].Id, {
-            //     DebugLevelId: debugLevelId
-            // })
             // 删除不合适的配置
-            await this.deleteRecord('TraceFlag', existingTraceFlag[0].Id);
         }
-        // 获取或创建DebugLevel
-        const debugLevelId = await this.getOrCreateDebugLevel();
+        
         
         // 创建新的TraceFlag（24小时有效期）
         return await this.createRecord('TraceFlag', {
