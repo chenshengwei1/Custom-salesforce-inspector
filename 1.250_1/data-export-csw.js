@@ -19,6 +19,7 @@ import {ApexLogAnalysis} from "./csw/ApexLogAnalysis.js"
 import {Pentaho} from "./csw/Pentaho.js"
 import {JSONFormat} from "./csw/JsonFormat.js"
 import {LookupTable} from "./csw/LookupTable.js"
+import {AnonymousApex} from "./csw/AnonymousApex.js"
 
 
 
@@ -101,6 +102,10 @@ let items = [{
     name:  'lookupTable',
     label: 'LookupTable',
     class: LookupTable
+},{
+    name:  'AnonymousApex',
+    label: 'AnonymousApex',
+    class: AnonymousApex
 }];
 
 
@@ -239,26 +244,40 @@ $('#toTop').on('click', ()=>{
         //     new ApplicationLog(tree),
         //     new RecordInfo(tree)];
         let tabs =[];
-      for (let item of items){
-        try{
-            let tab = new item.class(tree);
-            tab.createHead(item.rootId);
-            tabs.push(tab);
-            item.tab = tab;
-        }catch(e){
-            console.log(e);
-        }
-      }
-      tabs[5].metadateTree = tabs[3];
-      tabs[1].addListener('update', (e)=>{
-         let {reocrdId, sobject} = e.data;
-         tab.doUpdaate(reocrdId, sobject);
-      })
+        let initialData = (data)=>{
 
-      new ResizeTable('datatable').start();
-      $('#Retry').on('click',()=>{
-        tabs[1].doUpdate(sobjectName, recordId);
-      })
+        }
+
+        let openTab = (tabName, data)=>{
+            for (let item of tabs){
+                if (tabName == item.name){
+                    item.initialData(data);
+                }
+            }
+        }
+
+        for (let item of items){
+            try{
+                let tab = new item.class(tree);
+                tab.createHead(item.rootId);
+                tabs.push(tab);
+                item.tab = tab;
+                tab.initialData = tab.initialData || initialData;
+                tab.openTab = openTab;
+            }catch(e){
+                console.log(e);
+            }
+        }
+        tabs[5].metadateTree = tabs[3];
+        tabs[1].addListener('update', (e)=>{
+            let {reocrdId, sobject} = e.data;
+            tab.doUpdaate(reocrdId, sobject);
+        })
+
+        new ResizeTable('datatable').start();
+        $('#Retry').on('click',()=>{
+            tabs[1].doUpdate(sobjectName, recordId);
+        })
 
 
     });
