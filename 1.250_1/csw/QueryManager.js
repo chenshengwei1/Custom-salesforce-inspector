@@ -86,7 +86,8 @@ class DescribeInfoEx{
     }
 
     async describeGlobal(useToolingApi) {
-        let g = await this.getGlobal(useToolingApi);
+        let g = await this.getGlobal(false);
+        await this.getGlobal(true);
         return g.global;
     }
 
@@ -143,11 +144,14 @@ export class QueryMananger{
         this.callbacks=[];
         this.dataMap={};
         this.Tools= Tools;
+        this.userInfo;
     }
 
     async start(){
         await this.getSession();
-        let apiDescribes = this.describeInfo.getGlobal(this.useToolingApi);
+        //let apiDescribes = this.describeInfo.getGlobal(this.useToolingApi);
+        this.describeInfo.describeGlobal(this.useToolingApi)
+        this.userInfo = await this.getUserInfo();
         
     }
 
@@ -168,6 +172,21 @@ export class QueryMananger{
             return Array.from(this.describeInfo.sobjectAllDescribes?.tool?.sobjects?.values()||[]) ||[];
         }
         return Array.from(this.describeInfo.sobjectAllDescribes?.data?.sobjects?.values()||[]) ||[];
+    }
+
+    /**
+     * include tooling objects and data objects
+     */
+    get allSObjects(){
+        return Array.from(this.describeInfo.sobjectAllDescribes?.tool?.sobjects?.values()||[]).concat(Array.from(this.describeInfo.sobjectAllDescribes?.data?.sobjects?.values()||[]));
+    }
+
+    isDatasObject(objectName){
+        return Array.from(this.describeInfo.sobjectAllDescribes?.tool?.sobjects?.values()||[]).find(e=>e.name==objectName) != null;
+    }
+
+    isToolObject(objectName){
+        return Array.from(this.describeInfo.sobjectAllDescribes?.data?.sobjects?.values()||[]).find(e=>e.name==objectName) != null;
     }
 
     tool(isTool){
@@ -295,6 +314,110 @@ export class QueryMananger{
                 resolved(null);
               })
         })
+    }
+
+    getUserInfo(){
+        return sfConn.soap(sfConn.wsdl(apiVersion, "Partner"), "getUserInfo", {});
+        // .then(res => {
+        //     //this.userInfo = res.userFullName + " / " + res.userName + " / " + res.organizationName;
+        // })
+    }
+
+    toolQuery(soql){
+        return new Promise((resolved)=>{
+            let acQuery = soql;
+            
+            sfConn.rest("/services/data/v" + apiVersion + "/tooling/query/?q=" + encodeURIComponent(acQuery)).then(res => {
+                console.log('getEntityParticle ', res);
+                resolved(res.records);
+              }).catch(e=>{
+                resolved([]);
+              })
+        })
+    }
+
+    async updateRecord(objectApiName, recordData, useToolingApi = false) {
+        try {
+            const basePath = useToolingApi ? '/services/data/v58.0/tooling/sobjects' : '/services/data/v58.0/sobjects';
+            const endpoint = `${basePath}/${objectApiName}/`;
+            
+            // const response = await this.sfApiRequest(endpoint, {
+            //     method: 'POST',
+            //     body: JSON.stringify(recordData),
+            //     headers: {
+            //         'Content-Type': 'application/json'
+            //     }
+            // });
+
+            let response = await sfConn.rest(endpoint, {method: 'PATCH', body: recordData,
+                headers: {
+                    'Content-Type': 'application/json'
+                }});
+            
+             return {
+                    success: true,
+                    errors: [],
+                    ...response
+                };
+        } catch (error) {
+            console.error(`Error creating ${objectApiName} record:`, error);
+            throw error;
+        }
+    }
+
+    async createRecord(objectApiName, recordData, useToolingApi = false) {
+        try {
+            const basePath = useToolingApi ? '/services/data/v58.0/tooling/sobjects' : '/services/data/v58.0/sobjects';
+            const endpoint = `${basePath}/${objectApiName}/`;
+            
+            // const response = await this.sfApiRequest(endpoint, {
+            //     method: 'POST',
+            //     body: JSON.stringify(recordData),
+            //     headers: {
+            //         'Content-Type': 'application/json'
+            //     }
+            // });
+
+            let response = await sfConn.rest(endpoint, {method: 'POST', body: recordData,
+                headers: {
+                    'Content-Type': 'application/json'
+                }});
+            
+             return {
+                    success: true,
+                    errors: [],
+                    ...response
+                };
+        } catch (error) {
+            console.error(`Error creating ${objectApiName} record:`, error);
+            throw error;
+        }
+    }
+
+    async updateRecord(objectApiName, recordData, useToolingApi = false) {
+        try {
+            const basePath = useToolingApi ? '/services/data/v58.0/tooling/sobjects' : '/services/data/v58.0/sobjects';
+            const endpoint = `${basePath}/${objectApiName}/`;
+            
+            // const response = await this.sfApiRequest(endpoint, {
+            //     method: 'POST',
+            //     body: JSON.stringify(recordData),
+            //     headers: {
+            //         'Content-Type': 'application/json'
+            //     }
+            // });
+
+            let response = await sfConn.rest(endpoint, {method: 'DELETE', timeout: 30000});
+            
+             return {
+                    success: true,
+                    errors: [],
+                    ...response
+                };
+        } catch (error) {
+            console.error(`Error creating ${objectApiName} record:`, error);
+            throw error;
+        }
     }
 
     
@@ -769,6 +892,35 @@ export class QueryMananger{
 
     soql(){
         return this.retrieve(soql);
+    }
+
+    async execute(apexContent){
+        let acQuery = apexContent;
+        if (acQuery){
+            acQuery = '/services/data/v65.0/tooling/executeAnonymous?anonymousBody=' + encodeURIComponent(acQuery);
+        }else{
+            return;
+        }
+        let vm = this;
+        return await new Promise((resolved)=>{
+            sfConn.rest(acQuery, {execute: true})
+            .catch(err => {
+                if (err.name != "AbortError") {
+                    vm.autocompleteResults = {
+                        title: "Error: " + err.message,
+                        results: []
+                    };
+                }
+                resolved(null);
+            })
+            .then(data => {
+                resolved(data);
+            });
+        })
+    }
+
+    query(soql){
+        return this.getRecordsBySoql(soql);
     }
 
     async getRecordsBySoql(soql){
