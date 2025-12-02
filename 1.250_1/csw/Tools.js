@@ -216,9 +216,11 @@ export class Tools {
     }
 
     static formatDate (inputDate, format)  {
+      format = format || 'yyyy-MM-dd HH:mm:ss.SSS+0800';
       if (!inputDate) return '';
   
       const padZero = (value) => (value < 10 ? `0${value}` : `${value}`);
+      const padZero1 = (value) => (value < 10 ? `00${value}` : (value < 100 ? `0${value}` : `${value}`));
       const parts = {
           yyyy: inputDate.getFullYear(),
           MM: padZero(inputDate.getMonth() + 1),
@@ -227,10 +229,11 @@ export class Tools {
           hh: padZero(inputDate.getHours() > 12 ? inputDate.getHours() - 12 : inputDate.getHours()),
           mm: padZero(inputDate.getMinutes()),
           ss: padZero(inputDate.getSeconds()),
+          SSS: padZero1(inputDate.getMilliseconds()),
           tt: inputDate.getHours() < 12 ? 'AM' : 'PM'
       };
   
-      return format.replace(/yyyy|MM|dd|HH|hh|mm|ss|tt/g, (match) => parts[match]);
+      return format.replace(/yyyy|MM|dd|HH|hh|mm|ss|tt|SSS/g, (match) => parts[match]);
   }
 
   static formatSQL(input){

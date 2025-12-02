@@ -51,7 +51,7 @@ export class sfConn1{
       return {...this.processMap};
     }
 
-    async rest(url, {logErrors = true, responseType="json",method = "GET", api = "normal", body = undefined, bodyType = "json", headers = {}, progressHandler = null} = {}) {
+    async rest(url, {logErrors = true,execute = false, responseType="json",method = "GET", api = "normal", body = undefined, bodyType = "json", headers = {}, progressHandler = null} = {}) {
         if (!this.instanceHostname || !this.sessionId) {
           this.message = this.error('Session not found');
           throw new Error("Session not found");
@@ -67,7 +67,9 @@ export class sfConn1{
         }
 
         let xhr = new XMLHttpRequest();
-        url += (url.includes("?") ? "&" : "?") + "cache=" + Math.random();
+        if (!execute){
+          url += (url.includes("?") ? "&" : "?") + ("cache=" + Math.random());
+        }
         xhr.open(method, "https://" + this.instanceHostname + url, true);
 
         xhr.setRequestHeader("Accept", "application/json; charset=UTF-8");

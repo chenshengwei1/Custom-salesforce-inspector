@@ -1001,7 +1001,8 @@ class Model {
   }
 }
 
-function RecordTable(vm) {
+function 
+RecordTable(vm) {
   /*
   We don't want to build our own SOQL parser, so we discover the columns based on the data returned.
   This means that we cannot find the columns of cross-object relationships, when the relationship field is null for all returned records.

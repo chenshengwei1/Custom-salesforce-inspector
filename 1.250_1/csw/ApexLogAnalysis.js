@@ -1,4 +1,4 @@
-
+import {Tools} from "./Tools.js";
 export class ApexLogAnalysis{
 
     constructor(dateTree){
@@ -10,6 +10,9 @@ export class ApexLogAnalysis{
         this.processingQty = 0;
         this.sampleRecordCount = 1000000;
         this.types = new Set();
+        this.apexLogs = {};
+        this.name = 'ApexLogAnalysis';
+        this.currentLogContent = '';
     }
 
     get starting(){
@@ -33,6 +36,7 @@ export class ApexLogAnalysis{
         <style>
             .x-grid-table{
                 max-height: 90vh;
+                padding: 0 10px;
             }
 
             #toolbar-1441 {
@@ -45,6 +49,13 @@ export class ApexLogAnalysis{
 
             .x-grid-select{
                 color:#d5c0d0;
+                background-color: azure;
+            }
+
+            #logAnalysis-debuglog {
+                width: 100%;
+                max-height: 500px;
+                overflow-y: scroll;
             }
         </style>
         <p>
@@ -63,6 +74,10 @@ export class ApexLogAnalysis{
                     <span>Report2</span>
                     <div class="dot"></div>
                 </div>
+                <div class="btn" id="logAnalysis-refresh">
+                    <span>refresh</span>
+                    <div class="dot"></div>
+                </div>
             </div>
             
         </p>
@@ -75,20 +90,42 @@ export class ApexLogAnalysis{
             <div class="totalbar" id="logAnalysis-notificationmessage"></div>
 
             <div class="logAnalysis-view-soql tabitem SOQL">
-                <ul class="ui-module-tab menu-selector" id="menu-selector">
-                    <li id="logAnalysis-btn-reset">Stop</li>
-                    <li id="logAnalysis-btn-format" class="js-is-active">Format</li>
-                </ul>
-                <br/>
                 <div class="merge-input" id="merge-input"></div>
-                <input id="logAnalysis-searchkey" class="feedback-text feedback-input"></input>
-                <textarea contenteditable="true" name="" id="logAnalysis-sql" placeholder="input your soql here start to query" style="height: 228px;font-size: large;" class="feedback-text feedback-input"></textarea>
+                <input id="logAnalysis-searchkey" class="feedback-text feedback-input" placeholder="input your log id here start to query"></input>
+                <textarea contenteditable="true" name="" id="logAnalysis-content" placeholder="input your log text here start to parse" style="height: 228px;font-size: large;" class="feedback-text feedback-input"></textarea>
                 <textarea readonly name="" id="logAnalysis-message" style="height: 228px;font-size: large;" class="feedback-text feedback-input no-border"></textarea>
                 
             </div>
             <div class="logAnalysis-view-result tabitem Result">
                 <div id="logAnalysis-showallsobjectdatatable"></div>
                 <div id="logAnalysis-showallsobjectdatatable2"></div>
+            </div>
+        </div>
+        <div class="logAnalysis-log-searchresult">
+            <div class="debuglog">
+                <table id="logAnalysis-debuglog" style="width: 100%;" class="table">
+                    <thead>
+                        <tr class="">
+                            <th class="field-user " tabindex="0">User</th>
+                            <th class="field-app " tabindex="0">Application</th>
+                            <th class="field-operation " tabindex="0">Operation</th>
+                            <th class="field-time " tabindex="0">Time</th>
+                            <th class="field-status " tabindex="0">Status</th>
+                            <th class="field-read " tabindex="0">Read</th>
+                            <th class="field-size " tabindex="0">Size</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="debug-row-0">
+                            <td class=" field-value" tabindex="0"></td>
+                            <td class="field-value " tabindex="0"></td>
+                            <td class="field-actions "></td>
+                            <td class="field-actions "></td>
+                            <td class="field-actions "></td>
+                            <td class="field-actions "></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>`
             var div = document.createElement("div");
@@ -108,14 +145,12 @@ export class ApexLogAnalysis{
     initObjectAllDataHead(){
 
         $('#logAnalysis-refreshSObjectSearch').on('click', ()=>{
-            let content = $('#logAnalysis-sql').val().trim();
-
-            let records = this.parse_log_file(content);
-            this.exampleTable(records);
+            let apexLogId = $('#logAnalysis-searchkey').val().trim();
+            this.openDebugLog(apexLogId);
         })
 
         $('#logAnalysis-Filter').on('click', ()=>{
-            let content = $('#logAnalysis-sql').val().trim();
+            let content = this.currentLogContent;
             let key = $('#logAnalysis-searchkey').val().trim();
             let records = this.filter_log_file(content, key);
             this.exampleTable(records);
@@ -133,55 +168,116 @@ export class ApexLogAnalysis{
             fileReader.onload = ()=>{
                 //m.parse(fileReader.result);
                 let records = this.parse_log_file2(fileReader.result);
-                $('#logAnalysis-showallsobjectdatatable2').html(this.renderReport2(records));
+                $('#logAnalysis-showallsobjectdatatable2').html(this.renderApexLogContent(records));
             }
         })
 
-        $('#logAnalysis-Report1').on('click', ()=>{
-            $('#logAnalysis-showallsobjectdatatable').show();
-            $('#logAnalysis-showallsobjectdatatable2').hide();
+        $('#logAnalysis-refresh').on('click', ()=>{
+            this.debugLogMonitor();
+        })
+        
+
+        $('#logAnalysis-debuglog').on('dblclick','tr',  (e)=>{
+            console.log(e.currentTarget.id);
+            this.openDebugLog(e.currentTarget.id);
         })
 
-        $('#logAnalysis-Report2').on('click', ()=>{
-            $('#logAnalysis-showallsobjectdatatable').hide();
-            $('#logAnalysis-showallsobjectdatatable2').show();
+        $('#logAnalysis-debuglog').on('click','tr',  (e)=>{
+            $('#logAnalysis-debuglog tr').removeClass('selected');
+            $(e.currentTarget).addClass('selected');
         })
 
         $('#logAnalysis-showallsobjectdatatable2').on('change', '#textfield-1450-inputEl', ()=>{
+            const targetElement = document.querySelector('.x-grid-select');
+            let lineId = targetElement ? targetElement.id : null;
             this.filterReport2();
 
-            const targetElement = document.querySelector('.x-grid-select');
-            targetElement.scrollIntoView({ behavior: "smooth" });
+            if (lineId){
+                let targetElement = document.getElementById(lineId);
+                targetElement.scrollIntoView({ behavior: "smooth", block: 'center'       // 对齐方式: start, center, end, nearest 
+                });
+            }
         })
 
         $('#logAnalysis-showallsobjectdatatable2').on('click', '.x-form-checkbox', ()=>{
+            const targetElement = document.querySelector('.x-grid-select');
+            let lineId = targetElement ? targetElement.id : null;
+
             this.filterReport2();
 
-            const targetElement = document.querySelector('.x-grid-select');
-            targetElement.scrollIntoView({ behavior: "smooth" });
+           if (lineId){
+                let targetElement = document.getElementById(lineId);
+                targetElement.scrollIntoView({ behavior: "smooth", block: 'center'       // 对齐方式: start, center, end, nearest 
+                });
+            }
         })
         
 
         $('#logAnalysis-showallsobjectdatatable2').on('click', 'tr.x-grid-row-over', (event)=>{
             $('.x-grid-select').removeClass('x-grid-select');
-            $(event.target).addClass('x-grid-select');
+            $(event.currentTarget).addClass('x-grid-select');
         })
         
+        this.debugLogMonitor();
+    }
+
+    initialData(data){
+        if (data.id && data.type == 'ApexLog'){
+            this.openDebugLog(data.id);
+        }
+    }
+
+    openDebugLog(id){
+        if (!id){
+            return;
+        }
+        if (this.apexLogs[id]){
+            this.currentLogContent = this.apexLogs[id];
+            this.activateDebugLogTab(this.apexLogs[id]);
+            return;
+        }
+        this.tree.getApexlogByid(id).then(e=>{
+            this.apexLogs[id]=e.data;
+            this.currentLogContent = this.apexLogs[id];
+            this.activateDebugLogTab(e.data);
+        });
+    }
+
+    activateDebugLogTab(content){
+        let records = this.parse_log_file2(content || 'failed to load debug log');
+        $('#logAnalysis-showallsobjectdatatable2').html(this.renderApexLogContent(records));
+    }
+
+    debugLogMonitor(){
+        setTimeout(()=>{
+            this.loadDebugLog();
+        });
+    }
+
+    async loadDebugLog(){
+        const userId = this.tree.userInfo.userId;
+        let result = await this.tree.getRecordsBySoql(`select Id,LogUser.Name,Status, Request,   LogLength,LogUserId, Operation,Application,StartTime from ApexLog where LogUserId = '${userId}' order by StartTime desc limit 50`);
+        if (result.results.length){
+            for (let record of result.results){
+                if ($('.'+record.Id).length){
+                    continue;
+                }
+                $('.debug-row-0').after(`
+                    <tr class="${record.Id} debug-row" id="${record.Id}">
+                            <td class=" field-value" tabindex="0">${record.LogUser.Name}</td>
+                            <td class="field-value " tabindex="0">${record.Operation}</td>
+                            <td class="field-actions ">${record.Application}</td>
+                            <td class="field-actions ">${Tools.formatDate(new Date(record.StartTime))}</td>
+                            <td class="field-actions ">${record.Status}</td>
+                            <td class="field-actions ">Read</td>
+                            <td class="field-actions ">${record.LogLength}</td>
+                        </tr>
+                    `)
+            }
+        }
     }
 
     
-
-    isDebugonly(record){
-        return !this.isDebugOnlyChecked || (this.isDebugOnlyChecked && record.event == 'USER_DEBUG');
-    }
-
-    isFilterDetails(record){
-        return !this.isFilterDetailChecked || (this.isFilterDetailChecked && record.details.indexOf(this.filterDetailsWord) != -1);
-    }
-
-    filterByExecuteable(record){
-        return !this.isExecuteableChecked;
-    }
 
     filter_log_file(content, key){
         let lines = content.split(/\n/);
@@ -301,23 +397,6 @@ export class ApexLogAnalysis{
         // Add milliseconds to base_time
         final_time = base_time + timedelta(milliseconds=milliseconds)
         //return final_time.strftime("%H:%M:%S.%f")[:-3]  # "HH:mm:ss.SSS"
-    }
-
-    startMergeInput(h1, h2){
-        
-        let h1Opts = h1.map(e=>`<option value="${e}">${e}</option>`);
-        let h2Opts = h2.map(e=>`<option value="${e}">${e}</option>`);
-        let mg = `<div class="merge-item">
-        <select id="merge-option1" class="fieldname feedback-input main-style">
-            <option value="">Please select object</option>
-            ${h1Opts}
-        </select>
-        <select id="merge-option2" class="fieldname feedback-input main-style">
-            <option value="">Please select object</option>
-            ${h2Opts}
-        </select></div>`;
-
-        $('#merge-input').html(mg);
     }
 
     async search(soql){
@@ -455,30 +534,30 @@ export class ApexLogAnalysis{
             }else{
                 record.details = line;
             }
+
+            record.gid = records.length;
             records.push(record);
         }
         return records;
     }
 
     filterReport2(){
-        let text = $('#textfield-1450-inputEl').val().toLocaleLowerCase();
-        this.isDebugOnlyChecked = $('#checkboxfield-debugonly-input').checked();
-        this.isFilterDetailChecked = $('#checkboxfield-filter-input').checked();
-        if (this.isFilterDetailChecked){
-            this.filterDetailsWord = $('#textfield-1450-inputEl').val().toLocaleLowerCase();
-        }else{
-            $('#textfield-1450-inputEl').val('');
-        }
-        this.isExecuteableChecked = $('#checkboxfield-executable-input').checked();
+        this.filterDetailsWord = $('#textfield-1450-inputEl').val().toLocaleLowerCase();
+        this.isDebugOnlyChecked = $('#checkboxfield-debugonly-input').prop('checked');
+        this.isFilterDetailChecked = $('#checkboxfield-filter-input').prop('checked');
+        this.isExecuteableChecked = $('#checkboxfield-executable-input').prop('checked');
 
-        if (!text){
-            $('#gridview-1440 tr.x-grid-row-over').show();
-            return;
-        }
         $('#gridview-1440 tr.x-grid-row-over').each((index, ele)=>{
             let val = $(ele).find('td.x-grid-cell').text().toLocaleLowerCase();
             let record = {details: val, event:''};
-            if (this.isDebugonly(record) || this.isFilterDetails(record) || this.filterByExecuteable(record)){
+            let show = true;
+            if (this.isDebugOnlyChecked){
+                show = show && this.isDebugonly(record);
+            }
+            if (this.isFilterDetailChecked){
+                show = show && this.isFilterDetails(record);
+            }
+            if (show){
                 $(ele).show();
             }else{
                 $(ele).hide();
@@ -488,17 +567,29 @@ export class ApexLogAnalysis{
     }
 
     filterRecords2(records){
-        this.isDebugOnlyChecked = $('#checkboxfield-debugonly-input').checked();
-        this.isFilterDetailChecked = $('#checkboxfield-filter-input').checked();
+        this.isDebugOnlyChecked = $('#checkboxfield-debugonly-input').prop('checked');
+        this.isFilterDetailChecked = $('#checkboxfield-filter-input').prop('checked');
         this.filterDetailsWord = $('#textfield-1450-inputEl').val();
-        this.isExecuteableChecked = $('#checkboxfield-executable-input').checked();
+        this.isExecuteableChecked = $('#checkboxfield-executable-input').prop('checked');
         return records.filter(e=>{
             return this.isDebugonly(e)&&this.isFilterDetails(e)&&this.filterByExecuteable(e)
         })
     }
 
+    isDebugonly(record){
+        return (this.isDebugOnlyChecked && record.event == 'USER_DEBUG');
+    }
 
-    renderReport2(records){
+    isFilterDetails(record){
+        return (this.isFilterDetailChecked && record.details.indexOf(this.filterDetailsWord) != -1);
+    }
+
+    filterByExecuteable(record){
+        return false;
+    }
+
+
+    renderApexLogContent(records){
 
         let showRecords = [];
         let index = 0;
@@ -507,7 +598,8 @@ export class ApexLogAnalysis{
                 details : item.details,
                 logLine : index++,
                 timestamp : item.Time,
-                event : item.event
+                event : item.event,
+                gid : item.gid
             })
         }
         let parserObj = {
@@ -649,14 +741,17 @@ export class ApexLogAnalysis{
                     <div id="gridview-1440" class="x-grid-view x-fit-item x-grid-view-default x-unselectable" style="overflow: auto;  margin: 0px; " tabindex="-1">
                         <div style="position:absolute;width:1px;height:0;top:0;left:0;" id="ext-gen2405"></div>
                         <table class="x-grid-table x-grid-table-resizer" border="0" cellspacing="0" cellpadding="0">
-                            <tbody>
+                            <thead>
                                 <tr class="x-grid-header-row">
-                                ${parserObj.header.map(e=>{
-                                    return `<th class="x-grid-col-resizer-gridcolumn-1431" style="${e.show?(e.width?'width:'+e.width+'px':''):'0px'}; height: 0px;"></th>`;
-                                })}
+                                    ${parserObj.header.map(e=>{
+                                        return `<th class="x-grid-col-resizer-gridcolumn-1431" style="${e.show?(e.width?'width:'+e.width+'px':''):'0px'}; height: 0px;"></th>`;
+                                    })}
                                 </tr>
+                            <thead>
+                            <tbody>
+                                
                                 ${parserObj.records.map(recod=>{
-                                    return `<tr class="x-grid-row x-grid-row-over">
+                                    return `<tr class="x-grid-row x-grid-row-over" id="line-${recod.gid}">
                                         ${parserObj.header.map(e=>{
                                             return `<td class="${e.name} x-grid-cell x-grid-cell-gridcolumn-1431">
                                                     <div class="x-grid-cell-inner " style="text-align: left;">

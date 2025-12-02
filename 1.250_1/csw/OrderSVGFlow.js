@@ -1006,8 +1006,8 @@ export class OrderSVGFlow{
         this.allOrchestrationDependencyDefinitions = this.lastData.allRecords||[];
         this.createOMPlanDefine();
         this.id2groupMap = this.initGroupping(this.allOrchestrationDependencyDefinitions);
-        this.initProcessAllData(this.allOrchestrationDependencyDefinitions);
-        this.processData(this.allOrchestrationDependencyDefinitions, this.id2groupMap);
+        //this.initProcessAllData(this.allOrchestrationDependencyDefinitions);
+       // this.processData(this.allOrchestrationDependencyDefinitions, this.id2groupMap);
     }
 
     async query(recordId){
@@ -1426,13 +1426,21 @@ export class OrderSVGFlow{
         return rect;
     }
 
+    nextItemMap = {}
+
     getNextItems(itemId, allRecords){
+        if (this.nextItemMap[itemId]){
+            return this.nextItemMap[itemId];
+        }
+        console.log('getNextItems start Name: ' + this.allItemDefinitions[itemId]);
         let nextList = [];
+        this.nextItemMap[itemId] = nextList;
         for (let itemDefined of allRecords){
             if (itemDefined.vlocity_cmt__DependencyItemDefinitionId__c == itemId){
                 nextList.push({id:itemDefined.vlocity_cmt__OrchestrationItemDefinitionId__c, next:this.getNextItems(itemDefined.vlocity_cmt__OrchestrationItemDefinitionId__c, allRecords)});
             }
         }
+        console.log('getNextItems End Name: ' + this.allItemDefinitions[itemId]);
         return nextList;
     }
     addSVGLine(rect1, rect2){

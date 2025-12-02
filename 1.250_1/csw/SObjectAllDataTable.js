@@ -810,7 +810,7 @@ export class SObjectAllDataTable{
         })
 
         let autoComplete1 = new AutoComplete1('sobjectsearch2',()=>{
-            return this.tree.allSObjectApi.map(e=>{return e.global});
+            return this.tree.allSObjects.map(e=>{return e.global});
         });
         autoComplete1.setItemProvider({
             value:(item)=>{
@@ -821,7 +821,7 @@ export class SObjectAllDataTable{
                 if (!queryable){
                     return `<span style="color:yellow">${defval}</span> `;
                 }
-                return item.label + '('+defval+')';
+                return item.label + '('+defval+')' + ' - ' + (this.tree.isToolObject(item.name)?'T':'D');
             },
             filter:(valueArr, word)=>{
                 try{
