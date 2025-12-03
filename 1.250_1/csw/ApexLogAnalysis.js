@@ -66,12 +66,12 @@ export class ApexLogAnalysis{
                     <span>Method</span>
                     <div class="dot"></div>
                 </div>
-                <div class="btn" id="logAnalysis-Report1">
-                    <span>Report1</span>
+                <div class="btn" id="logAnalysis-executeAnonymous">
+                    <span>executeAnonymous</span>
                     <div class="dot"></div>
                 </div>
-                <div class="btn" id="logAnalysis-Report2">
-                    <span>Report2</span>
+                <div class="btn" id="logAnalysis-ClearneCache">
+                    <span>Clear Cache</span>
                     <div class="dot"></div>
                 </div>
                 <div class="btn" id="logAnalysis-refresh">
@@ -182,6 +182,15 @@ export class ApexLogAnalysis{
             this.openDebugLog(e.currentTarget.id);
         })
 
+
+        $('#logAnalysis-executeAnonymous').on('click', ()=>{
+            this.debugLogMonitor('executeAnonymous');
+        })
+
+        $('#logAnalysis-ClearneCache').on('click',  (e)=>{ 
+            $('tr[id].debug-row').remove();
+        })
+
         $('#logAnalysis-debuglog').on('click','tr',  (e)=>{
             $('#logAnalysis-debuglog tr').removeClass('selected');
             $(e.currentTarget).addClass('selected');
@@ -248,16 +257,26 @@ export class ApexLogAnalysis{
         $('#logAnalysis-showallsobjectdatatable2').html(this.renderApexLogContent(records));
     }
 
-    debugLogMonitor(){
+    debugLogMonitor(type){
         setTimeout(()=>{
-            this.loadDebugLog();
+            this.loadDebugLog(type);
         });
     }
 
-    async loadDebugLog(){
+    async loadDebugLog(type){
         const userId = this.tree.userInfo.userId;
-        let result = await this.tree.getRecordsBySoql(`select Id,LogUser.Name,Status, Request,   LogLength,LogUserId, Operation,Application,StartTime from ApexLog where LogUserId = '${userId}' order by StartTime desc limit 50`);
+        let soql  = `select Id,LogUser.Name,Status, Request,   LogLength,LogUserId, Operation,Application,StartTime from ApexLog where LogUserId = '${userId}' order by StartTime desc limit 50`;
+        if (type == 'executeAnonymous'){
+            soql  = `select Id,LogUser.Name,Status, Request,   LogLength,LogUserId, Operation,Application,StartTime from ApexLog where LogUserId = '${userId}' and Operation like '%executeAnonymous%' order by StartTime desc limit 50`;
+        }
+        if (!userId){
+            return;
+        }
+        let result = await this.tree.getRecordsBySoql(soql);
         if (result.results.length){
+            result.results.sort((a, b)=>{
+                return new Date(a.StartTime) - new Date(b.StartTime);
+            });
             for (let record of result.results){
                 if ($('.'+record.Id).length){
                     continue;
@@ -547,9 +566,16 @@ export class ApexLogAnalysis{
         this.isFilterDetailChecked = $('#checkboxfield-filter-input').prop('checked');
         this.isExecuteableChecked = $('#checkboxfield-executable-input').prop('checked');
 
+        let recordMap = this.originalRecords.reduce((map, record)=>{
+            map[record.gid] = record;
+            return map;
+        }, {});
+
+
         $('#gridview-1440 tr.x-grid-row-over').each((index, ele)=>{
-            let val = $(ele).find('td.x-grid-cell').text().toLocaleLowerCase();
-            let record = {details: val, event:''};
+            let eleID = $(ele).attr('Id');
+            if (!eleID)return;
+            let record = recordMap[eleID.replace('line-', '')];
             let show = true;
             if (this.isDebugOnlyChecked){
                 show = show && this.isDebugonly(record);
@@ -590,7 +616,7 @@ export class ApexLogAnalysis{
 
 
     renderApexLogContent(records){
-
+        this.originalRecords = records;
         let showRecords = [];
         let index = 0;
         for (let item of records){
@@ -622,7 +648,7 @@ export class ApexLogAnalysis{
                 show:false
             }, {
                 name:'event',
-                show:false,
+                show:true,
                 width:100
             },  {
                 name:'details',
