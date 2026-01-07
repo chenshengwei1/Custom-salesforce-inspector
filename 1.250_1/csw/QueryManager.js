@@ -326,12 +326,62 @@ export class QueryMananger{
     toolQuery(soql){
         return new Promise((resolved)=>{
             let acQuery = soql;
-            
-            sfConn.rest("/services/data/v" + apiVersion + "/tooling/query/?q=" + encodeURIComponent(acQuery)).then(res => {
-                console.log('getEntityParticle ', res);
-                resolved(res.records);
+            let totalRecords = [];
+            this.queryUrlRecords("/services/data/v" + apiVersion + "/tooling/query/?q=" + encodeURIComponent(acQuery),  totalRecords).then(res => {
+                resolved(totalRecords);
+              }).catch(e=>{
+                resolved(totalRecords);
+              })
+
+        })
+    }
+
+    querySosl(soql,  isToolQuery = false){
+        return new Promise((resolved)=>{
+            let results = [];
+            // https://here2serve--devpcd02.sandbox.my.salesforce.com/services/data/v65.0/search?q=FIND%20%7B%40isTest%7D%20IN%20ALL%20FIELDS%20RETURNING%20ApexClass(Id)
+            let soQuery = isToolQuery?"/services/data/v" + apiVersion + "/tooling/search/?q=": "/services/data/v" + apiVersion + "/search/?q=";
+            soQuery = soQuery + encodeURIComponent(soql);
+            this.queryUrl(soQuery, results).then(res => {
+                let records = [];
+                for (let r of results){
+                    records.push(...(r.searchRecords || []));
+                }
+                resolved(records);
+            });
+        })
+    }
+
+    queryUrlRecords(url, totalRecords=[]){
+        return new Promise((resolved)=>{
+            sfConn.rest(url).then(res => {
+                totalRecords.push(...res.records);
+                if (res && res.done == false && res.nextRecordsUrl && totalRecords.length < 10000) {
+                    this.queryUrl(res.nextRecordsUrl, totalRecords).then(nextRes => {
+                        resolved(nextRes);
+                    });
+                } else {
+                    resolved(totalRecords);
+                }
               }).catch(e=>{
                 resolved([]);
+              })
+        })
+    }
+
+    queryUrl(url, results=[]){
+        return new Promise((resolved)=>{
+            sfConn.rest(url).then(res => {
+                results.push(res);
+                if (res && res.done == false && res.nextRecordsUrl) {
+                    this.queryUrl(res.nextRecordsUrl, results).then(nextRes => {
+                        resolved(results);
+                    });
+                } else {
+                    resolved(results);
+                }
+              }).catch(e=>{
+                resolved(results);
               })
         })
     }

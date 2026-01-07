@@ -1,4 +1,5 @@
 import {Dialog} from './Dialog.js';
+import {Tools} from "./Tools.js";
 
 export class AnonymousApex{
 
@@ -23,6 +24,10 @@ export class AnonymousApex{
         }else{
             $('#AnonymousApex-refreshSObjectSearch').removeClass('loading');
         }
+    }
+
+    active(){
+        this.render();
     }
 
     createHead(rootId){
@@ -108,23 +113,30 @@ export class AnonymousApex{
                     onCancel: function() {}});
             }
         });
-
-        new SalesforceDebugManager(this.tree).ensureDebuggingEnabled();
         
     }
 
+    render(){
+        new SalesforceDebugManager(this.tree).ensureDebuggingEnabled();
+    }
+
     execute(content){
+        let start = new Date();
         this.tree.execute(content)
         .then(res => res)
         .then(data => {
             if (data.success){
-                this.tree.getRecordsBySoql(`SELECT Id FROM ApexLog WHERE LogUserId = '${this.tree.userInfo.userId}' and Operation like '%executeAnonymous%' ORDER BY StartTime DESC LIMIT 1`)
+                this.tree.getRecordsBySoql(`SELECT Id FROM ApexLog WHERE LogUserId = '${this.tree.userInfo.userId}' and StartTime > ${start.toISOString()} and Operation like '%executeAnonymous%' ORDER BY StartTime DESC LIMIT 1`)
                 .then(data => {
+                    if (!data?.data?.records?.length){
+                        alert('No Apex Log found for the executed anonymous Apex.');
+                        return {};
+                    }
                     this.openTab('ApexLogAnalysis', {id: data.data.records[0].Id, type: 'ApexLog'});
                     return this.tree.getApexlogByid(data.data.records[0].Id);
                 })
                 .then(e=>{
-                    $('#AnonymousApex-message').val(e.data);
+                    $('#AnonymousApex-message').val(e.data || '');
                 });
             }else{
                 $('#AnonymousApex-message').val(JSON.stringify(data, '\t','\t'));
@@ -162,8 +174,8 @@ export class AnonymousApex{
 
     async queryTraceFlag(){
         let traceFlagSoql = `SELECT Id, DebugLevelId, StartDate, ExpirationDate, LogType, TracedEntityId  FROM TraceFlag 
-WHERE TracedEntityId = '[当前用户ID]' 
-OR TracedEntityId IN (SELECT Id FROM User WHERE UserName = '[当前用户名]')`;
+WHERE TracedEntityId = '${debugLevelId}' 
+OR TracedEntityId IN (SELECT Id FROM User WHERE UserName = '${this.tree.userInfo.userName}')`;
 
         return this.tree.getRecordsBySoql(traceFlagSoql);
     }
@@ -231,14 +243,23 @@ class SalesforceDebugManager {
         const existingTraceFlag = await this.query(`
             SELECT Id, DebugLevelId, ExpirationDate 
             FROM TraceFlag 
-            WHERE TracedEntityId = '${userId}' and DebugLevelId = '${debugLevelId}'
+            WHERE TracedEntityId = '${userId}' order by ExpirationDate desc
         `);
 
-        if (existingTraceFlag.length > 0) {
-            if (existingTraceFlag[0].ExpirationDate < new Date().toISOString()) {
-                await this.deleteRecord('TraceFlag', existingTraceFlag[0].Id);
+        let debugTraceFlag = null;
+        for (let traceFlag of existingTraceFlag) {
+            if (traceFlag.ExpirationDate > new Date().toISOString()) {
+                return traceFlag;
+            } if (traceFlag.DebugLevelId == debugLevelId){
+                debugTraceFlag = traceFlag;
+            }
+        }
+
+        if (debugTraceFlag) {
+            if (debugTraceFlag.ExpirationDate < new Date().toISOString()) {
+                await this.deleteRecord('TraceFlag', debugTraceFlag.Id);
             }else{
-                return existingTraceFlag[0];
+                return debugTraceFlag;
             }
             // 删除不合适的配置
         }
@@ -264,7 +285,7 @@ class SalesforceDebugManager {
         // 查找现有的合适DebugLevel
         const result = await this.query(`
             SELECT Id FROM DebugLevel 
-            WHERE (ApexCode = 'FINEST' AND System = 'FINE') or MasterLabel = 'Plugin Debug Level'
+            WHERE DeveloperName = 'Plugin_Debug_Level'
             LIMIT 1
         `);
 
@@ -274,7 +295,7 @@ class SalesforceDebugManager {
 
         // 创建新的DebugLevel
         const newDebugLevel = await this.createRecord('DebugLevel', {
-            DeveloperName: `Plugin_Debug Level`,
+            DeveloperName: `Plugin_Debug_Level`,
             MasterLabel: 'Plugin Debug Level',
             ApexCode: 'FINEST',
             ApexProfiling: 'ERROR',

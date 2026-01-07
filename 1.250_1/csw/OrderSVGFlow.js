@@ -12,8 +12,22 @@ export class OrderSVGFlow{
         
     }
 
+    active(){
+        if (this.init){
+            return;
+        }
+        this.init =  true;
+        this.createHead(this.rootId);
+    }
+
     createHead(rootId){
         this.rootId = rootId;
+
+        this.rootId = rootId;
+        if (!this.init){
+            return;
+        }
+        
         let treeroot = document.getElementById(rootId);
         let searchAear = `
         <style>
