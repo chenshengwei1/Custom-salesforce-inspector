@@ -1,5 +1,7 @@
 import {AutoComplete1} from "./AutoComplete1.js";
 import {Notifiable} from "./Notifiable.js";
+import { APIService } from "./APIService.js";
+
 
 export class SObjectTable extends Notifiable{
     constructor(dateTree){
@@ -15,7 +17,7 @@ export class SObjectTable extends Notifiable{
             fc = `[{"name":"name", "label":"Field API Name"},{"name":"label"},{"name":"type"},{"name":"referenceTo"}, {"name":"relationshipName"}]`;
         }
         this.fieldColumns = JSON.parse(fc);
-
+        this.apiService = new APIService(this.tree);
     }
 
     get sobjectDescribe(){

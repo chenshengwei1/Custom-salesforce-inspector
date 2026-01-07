@@ -20,6 +20,7 @@ import {Pentaho} from "./csw/Pentaho.js"
 import {JSONFormat} from "./csw/JsonFormat.js"
 import {LookupTable} from "./csw/LookupTable.js"
 import {AnonymousApex} from "./csw/AnonymousApex.js"
+import {ApexUnitTest} from "./csw/ApexUnitTest.js"
 
 
 
@@ -106,6 +107,10 @@ let items = [{
     name:  'AnonymousApex',
     label: 'AnonymousApex',
     class: AnonymousApex
+},{
+    name:  'ApexUnitTest',
+    label: 'Apex Unit Test',
+    class: ApexUnitTest
 }];
 
 
@@ -251,7 +256,9 @@ $('#toTop').on('click', ()=>{
         let openTab = (tabName, data)=>{
             for (let item of tabs){
                 if (tabName == item.name){
+                    $('.tab .tablinks[name="' + tabName + '"]').click();
                     item.initialData(data);
+                    return
                 }
             }
         }
@@ -264,6 +271,7 @@ $('#toTop').on('click', ()=>{
                 item.tab = tab;
                 tab.initialData = tab.initialData || initialData;
                 tab.openTab = openTab;
+                tab.name = item.name;
             }catch(e){
                 console.log(e);
             }
